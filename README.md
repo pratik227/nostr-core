@@ -226,4 +226,4 @@ See the full [comparison guide](./docs/guide/comparison.md) for details.
 
 ## License
 
-MIT
+[MIT](./LICENSE)
