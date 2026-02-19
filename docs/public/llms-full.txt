@@ -1,0 +1,1964 @@
+# nostr-core - Full Documentation
+
+> Dead-simple, vendor-neutral NWC (Nostr Wallet Connect) client for JavaScript and TypeScript.
+
+nostr-core is a lightweight library for interacting with Bitcoin Lightning wallets over the Nostr network using the NIP-47 protocol. Pass in a connection string, and start making payments, creating invoices, and listening for real-time notifications.
+
+---
+
+# Introduction
+
+## What is NWC?
+
+**Nostr Wallet Connect (NWC)** is a protocol (NIP-47) that lets applications interact with Lightning wallets over the Nostr network. Instead of each wallet providing its own proprietary API, NWC defines a standard set of operations - pay invoices, check balances, create invoices - that any wallet can implement.
+
+The communication happens through Nostr relays using encrypted events, so your app never needs direct access to the wallet. The user simply shares a **connection string** and your app can start making requests.
+
+## Why nostr-core?
+
+Existing NWC libraries tend to be either:
+
+- **Vendor-specific** - tightly coupled to one wallet provider's SDK
+- **Heavy** - pulling in large Nostr client frameworks when you only need wallet operations
+- **Incomplete** - missing encryption support, error handling, or TypeScript types
+
+**nostr-core** takes a different approach:
+
+- **Single connection string** - pass in a `nostr+walletconnect://` URI and start making calls
+- **Full NIP-47 coverage** - every method (`pay_invoice`, `get_balance`, `make_invoice`, `list_transactions`, etc.)
+- **Auto-encryption** - detects whether the wallet supports NIP-04 or NIP-44 and handles it transparently
+- **Typed errors** - specific error classes for timeouts, connection failures, wallet errors, and decryption issues
+- **Zero framework deps** - built on audited noble cryptography libraries only
+- **ESM-only** - tree-shakeable, modern JavaScript
+
+## What's Included
+
+Beyond the NWC client, nostr-core also exports the low-level building blocks:
+
+| Module | Description |
+|--------|-------------|
+| `NWC` | High-level wallet client |
+| `Relay` / `RelayPool` | WebSocket relay connections |
+| `nip04` | AES-256-CBC encryption |
+| `nip44` | ChaCha20 encryption |
+| `nip19` | Bech32 encoding/decoding |
+| `finalizeEvent` / `verifyEvent` | Event signing and verification |
+| `generateSecretKey` / `getPublicKey` | Key generation |
+| `Filter` / `matchFilter` | Event filtering |
+
+These are the same primitives used internally by the NWC client, exposed so you can build custom Nostr applications without pulling in another library.
+
+---
+
+# Installation
+
+## Package Manager
+
+```sh
+npm install nostr-core
+```
+
+```sh
+pnpm add nostr-core
+```
+
+```sh
+yarn add nostr-core
+```
+
+## Requirements
+
+- **Node.js 18+** or any runtime with Web Crypto and WebSocket support (Deno, Bun, Cloudflare Workers)
+- **ESM only** - nostr-core ships as an ES module. Your project must use `"type": "module"` in `package.json` or use `.mjs` file extensions.
+
+## Dependencies
+
+nostr-core has four runtime dependencies, all from the audited noble / scure family:
+
+| Package | Purpose |
+|---------|---------|
+| `@noble/curves` | secp256k1 / schnorr signatures |
+| `@noble/hashes` | SHA-256, HMAC, HKDF |
+| `@noble/ciphers` | AES-CBC, ChaCha20 |
+| `@scure/base` | Base64, bech32 encoding |
+
+No framework dependencies. No native addons.
+
+## Verify Installation
+
+```ts
+import { NWC, generateSecretKey, getPublicKey } from 'nostr-core'
+
+const sk = generateSecretKey()
+console.log('Public key:', getPublicKey(sk))
+```
+
+If the above prints a 64-character hex string, you're ready to go.
+
+---
+
+# Quick Start
+
+## Get a Connection String
+
+Your NWC-compatible wallet will provide a connection string that looks like:
+
+```
+nostr+walletconnect://walletpubkey?relay=wss://relay.example.com&secret=hex_or_nsec
+```
+
+Most wallets have an "NWC" or "Nostr Wallet Connect" section in their settings where you can generate one.
+
+## Connect and Query
+
+```ts
+import { NWC } from 'nostr-core'
+
+const connectionString = 'nostr+walletconnect://...'
+
+// Create client and connect
+const nwc = new NWC(connectionString)
+await nwc.connect()
+
+// Check wallet info
+const info = await nwc.getInfo()
+console.log('Connected to:', info.alias)
+console.log('Supported methods:', info.methods)
+
+// Check balance
+const { balance } = await nwc.getBalance()
+console.log(`Balance: ${balance} msats`)
+
+// Always close when done
+nwc.close()
+```
+
+## Pay an Invoice
+
+```ts
+const nwc = new NWC(connectionString)
+await nwc.connect()
+
+try {
+  const { preimage } = await nwc.payInvoice('lnbc...')
+  console.log('Paid! Preimage:', preimage)
+} catch (err) {
+  console.error('Payment failed:', err.message)
+} finally {
+  nwc.close()
+}
+```
+
+## Create an Invoice
+
+```ts
+const nwc = new NWC(connectionString)
+await nwc.connect()
+
+const invoice = await nwc.makeInvoice({
+  amount: 1000, // 1000 msats
+  description: 'Coffee payment',
+})
+
+console.log('Invoice:', invoice.invoice)
+console.log('Payment hash:', invoice.payment_hash)
+
+nwc.close()
+```
+
+## Listen for Payments
+
+```ts
+const nwc = new NWC(connectionString)
+await nwc.connect()
+
+const unsub = await nwc.subscribeNotifications((notification) => {
+  const tx = notification.notification
+  switch (notification.notification_type) {
+    case 'payment_received':
+      console.log(`Received ${tx.amount} msats`)
+      break
+    case 'payment_sent':
+      console.log(`Sent ${tx.amount} msats`)
+      break
+    case 'hold_invoice_accepted':
+      console.log(`Hold invoice ${tx.payment_hash} accepted`)
+      break
+  }
+})
+
+// Call unsub() when you want to stop, then nwc.close()
+```
+
+---
+
+# Wallet Operations
+
+This guide covers every NWC method with parameters, return values, and examples.
+
+## getInfo
+
+Returns information about the connected wallet.
+
+```ts
+const info = await nwc.getInfo()
+```
+
+**Returns:** `GetInfoResponse`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `alias` | `string` | Wallet name |
+| `color` | `string` | Wallet color (hex) |
+| `pubkey` | `string` | Wallet node pubkey |
+| `network` | `string` | Network (e.g. `"mainnet"`) |
+| `block_height` | `number` | Current block height |
+| `block_hash` | `string` | Current block hash |
+| `methods` | `string[]` | Supported NWC methods |
+| `notifications` | `string[]` | Supported notification types (optional) |
+
+`getInfo` uses a 10-second reply timeout instead of the default 60 seconds.
+
+## getBalance
+
+Returns the wallet balance in millisatoshis.
+
+```ts
+const { balance } = await nwc.getBalance()
+console.log(`${balance} msats`)
+```
+
+**Returns:** `GetBalanceResponse`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `balance` | `number` | Balance in msats |
+
+## getBudget
+
+Returns the remaining NWC spending budget.
+
+```ts
+const budget = await nwc.getBudget()
+if (budget.total_budget) {
+  console.log(`Used ${budget.used_budget} of ${budget.total_budget} msats`)
+}
+```
+
+**Returns:** `GetBudgetResponse`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `used_budget` | `number?` | Amount spent in current period |
+| `total_budget` | `number?` | Total budget for the period |
+| `renews_at` | `number?` | Unix timestamp of next renewal |
+| `renewal_period` | `string?` | Budget period (e.g. `"monthly"`) |
+
+## payInvoice
+
+Pays a Lightning invoice.
+
+```ts
+const { preimage, fees_paid } = await nwc.payInvoice('lnbc...')
+```
+
+For zero-amount invoices, pass the amount in msats:
+
+```ts
+const { preimage } = await nwc.payInvoice('lnbc1...', 5000)
+```
+
+**Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `invoice` | `string` | BOLT-11 invoice string |
+| `amount` | `number?` | Amount in msats (for zero-amount invoices) |
+
+**Returns:** `PayResponse`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `preimage` | `string` | Payment preimage (proof of payment) |
+| `fees_paid` | `number?` | Routing fees in msats |
+
+## payKeysend
+
+Sends a keysend payment directly to a node pubkey.
+
+```ts
+const { preimage } = await nwc.payKeysend({
+  amount: 1000,
+  pubkey: '03...destination_pubkey',
+})
+```
+
+With TLV records (e.g. for podcasting 2.0):
+
+```ts
+const { preimage } = await nwc.payKeysend({
+  amount: 1000,
+  pubkey: '03...',
+  tlv_records: [
+    { type: 7629169, value: '...podcast_guid' },
+  ],
+})
+```
+
+**Parameters:** `PayKeysendRequest`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `amount` | `number` | Amount in msats |
+| `pubkey` | `string` | Destination node pubkey |
+| `preimage` | `string?` | Custom preimage |
+| `tlv_records` | `Array?` | TLV records `{ type, value }` |
+
+**Returns:** `PayResponse`
+
+## makeInvoice
+
+Creates a Lightning invoice.
+
+```ts
+const tx = await nwc.makeInvoice({
+  amount: 10000,
+  description: 'Coffee payment',
+  expiry: 3600,
+})
+console.log('Invoice:', tx.invoice)
+```
+
+**Parameters:** `MakeInvoiceRequest`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `amount` | `number` | Amount in msats |
+| `description` | `string?` | Invoice description |
+| `description_hash` | `string?` | SHA-256 hash of description |
+| `expiry` | `number?` | Expiry in seconds |
+
+**Returns:** `Transaction`
+
+## lookupInvoice
+
+Looks up an invoice by payment hash or invoice string.
+
+```ts
+const tx = await nwc.lookupInvoice({ payment_hash: 'abc123...' })
+// or
+const tx = await nwc.lookupInvoice({ invoice: 'lnbc...' })
+```
+
+**Parameters:** `LookupInvoiceRequest`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `payment_hash` | `string?` | Payment hash |
+| `invoice` | `string?` | BOLT-11 invoice |
+
+**Returns:** `Transaction`
+
+## listTransactions
+
+Lists past transactions with optional filtering.
+
+```ts
+const { transactions } = await nwc.listTransactions({
+  limit: 20,
+  type: 'incoming',
+})
+for (const tx of transactions) {
+  console.log(`${tx.type}: ${tx.amount} msats`)
+}
+```
+
+**Parameters:** `ListTransactionsRequest`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `from` | `number?` | Start timestamp |
+| `until` | `number?` | End timestamp |
+| `limit` | `number?` | Max results |
+| `offset` | `number?` | Pagination offset |
+| `unpaid` | `boolean?` | Include unpaid invoices |
+| `type` | `string?` | `'incoming'` or `'outgoing'` |
+
+**Returns:** `ListTransactionsResponse`
+
+## signMessage
+
+Signs a message with the wallet's key.
+
+```ts
+const { message, signature } = await nwc.signMessage('Hello, Nostr!')
+```
+
+**Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `message` | `string` | Message to sign |
+
+**Returns:** `SignMessageResponse`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `message` | `string` | The signed message |
+| `signature` | `string` | The signature |
+
+## payLightningAddress
+
+Resolves a Lightning Address via LNURL-pay and pays the resulting invoice.
+
+```ts
+const { preimage, invoice } = await nwc.payLightningAddress('hello@getalby.com', 100)
+```
+
+**Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `address` | `string` | Lightning Address (e.g. `user@domain.com`) |
+| `amountSats` | `number` | Amount in satoshis |
+
+**Returns:** `PayResponse & { invoice: string }`
+
+## payLightningAddressFiat
+
+Converts a fiat amount to sats using live exchange rates, then pays a Lightning Address.
+
+```ts
+const { preimage, invoice, sats, rate } = await nwc.payLightningAddressFiat('hello@getalby.com', 5, 'usd')
+console.log(`Paid ${sats} sats ($5 at $${rate}/BTC)`)
+```
+
+**Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `address` | `string` | Lightning Address |
+| `fiatAmount` | `number` | Amount in fiat currency |
+| `currency` | `string` | Currency code (e.g. `'usd'`, `'eur'`, `'gbp'`) |
+
+**Returns:** `PayResponse & { invoice: string, sats: number, rate: number }`
+
+## Notifications
+
+NIP-47 notifications allow you to receive real-time events from the wallet (e.g. when a payment is received or sent). Notifications are delivered over Nostr event kinds `23196` (NIP-04 encryption) or `23197` (NIP-44 encryption).
+
+### Using subscribeNotifications
+
+The recommended approach returns an unsubscribe function and supports filtering by notification type:
+
+```ts
+const unsub = await nwc.subscribeNotifications((notification) => {
+  const tx = notification.notification
+  switch (notification.notification_type) {
+    case 'payment_received':
+      console.log(`Received ${tx.amount} msats`)
+      break
+    case 'payment_sent':
+      console.log(`Sent ${tx.amount} msats, fees: ${tx.fees_paid}`)
+      break
+    case 'hold_invoice_accepted':
+      console.log(`Hold invoice ${tx.payment_hash} accepted`)
+      break
+  }
+})
+
+// Stop listening when done:
+unsub()
+```
+
+You can filter to only specific notification types:
+
+```ts
+const unsub = await nwc.subscribeNotifications(
+  (notification) => {
+    console.log(`Payment received: ${notification.notification.amount} msats`)
+  },
+  ['payment_received'],
+)
+```
+
+### Using the Event Emitter
+
+Alternatively, use the `on`/`off` event emitter pattern:
+
+```ts
+nwc.on('payment_received', (notification) => {
+  const tx = notification.notification
+  console.log(`Received ${tx.amount} msats`)
+})
+
+nwc.on('payment_sent', (notification) => {
+  const tx = notification.notification
+  console.log(`Sent ${tx.amount} msats, fees: ${tx.fees_paid}`)
+})
+
+nwc.on('hold_invoice_accepted', (notification) => {
+  const tx = notification.notification
+  console.log(`Hold invoice ${tx.payment_hash} accepted`)
+})
+```
+
+Remove a handler:
+
+```ts
+nwc.off('payment_received', myHandler)
+```
+
+### Supported Notification Types
+
+| Type | Description |
+|------|-------------|
+| `payment_received` | An incoming payment was received |
+| `payment_sent` | An outgoing payment was completed |
+| `hold_invoice_accepted` | A hold invoice was accepted by the payer |
+
+---
+
+# Encryption
+
+NWC messages are encrypted between your app and the wallet. nostr-core supports both encryption standards and auto-detects which one to use.
+
+## NIP-04 vs NIP-44
+
+| | NIP-04 | NIP-44 |
+|---|--------|--------|
+| **Algorithm** | AES-256-CBC | ChaCha20 + HMAC-SHA256 |
+| **Status** | Legacy (widely supported) | Modern (recommended) |
+| **Padding** | None | Power-of-2 padding |
+| **Authentication** | None (encrypt-only) | HMAC authenticated |
+| **Format** | `base64?iv=base64` | Single base64 blob |
+
+NIP-44 is the preferred standard - it provides authenticated encryption and hides message length via padding. However, many wallets still only support NIP-04.
+
+## Auto-Detection
+
+When you call `nwc.connect()`, nostr-core automatically detects which encryption the wallet supports:
+
+1. Queries the wallet's **service info event** (kind `13194`)
+2. Checks if the content includes `nip44` in the supported methods
+3. Uses NIP-44 if available, falls back to NIP-04
+
+You don't need to configure anything - encryption is handled transparently.
+
+```ts
+const nwc = new NWC(connectionString)
+await nwc.connect() // Encryption auto-detected here
+await nwc.getBalance() // Request/response encrypted automatically
+```
+
+## Using NIP-04 Directly
+
+```ts
+import { nip04 } from 'nostr-core'
+
+const ciphertext = nip04.encrypt(mySecretKey, recipientPubkey, 'Hello!')
+const plaintext = nip04.decrypt(mySecretKey, senderPubkey, ciphertext)
+```
+
+## Using NIP-44 Directly
+
+NIP-44 uses a pre-computed **conversation key** for efficiency:
+
+```ts
+import { nip44 } from 'nostr-core'
+
+// Pre-compute the shared key (do this once per conversation)
+const convKey = nip44.getConversationKey(mySecretKey, recipientPubkey)
+
+// Encrypt and decrypt
+const ciphertext = nip44.encrypt('Hello!', convKey)
+const plaintext = nip44.decrypt(ciphertext, convKey)
+```
+
+## Decryption Errors
+
+If a response can't be decrypted, nostr-core throws an `NWCDecryptionError`:
+
+```ts
+import { NWCDecryptionError } from 'nostr-core'
+
+try {
+  await nwc.getBalance()
+} catch (err) {
+  if (err instanceof NWCDecryptionError) {
+    console.error('Decryption failed:', err.message)
+    // err.code === 'DECRYPTION_ERROR'
+  }
+}
+```
+
+---
+
+# Relays
+
+Relays are WebSocket servers that store and forward Nostr events. nostr-core provides two classes for working with them: `Relay` for single connections and `RelayPool` for multiple relays.
+
+If you're only using the `NWC` class, relay management is handled automatically. This guide is for building custom Nostr applications.
+
+## Relay
+
+Connect to a single relay:
+
+```ts
+import { Relay } from 'nostr-core'
+
+const relay = new Relay('wss://relay.example.com')
+await relay.connect()
+
+console.log('Connected:', relay.connected)
+```
+
+### Publishing Events
+
+```ts
+import { finalizeEvent, generateSecretKey } from 'nostr-core'
+
+const sk = generateSecretKey()
+const event = finalizeEvent({
+  kind: 1,
+  tags: [],
+  content: 'Hello from nostr-core!',
+  created_at: Math.floor(Date.now() / 1000),
+}, sk)
+
+const reason = await relay.publish(event)
+console.log('Published:', reason)
+```
+
+### Subscribing to Events
+
+```ts
+const sub = relay.subscribe(
+  [{ kinds: [1], limit: 10 }],
+  {
+    onevent(event) {
+      console.log('Received:', event.content)
+    },
+    oneose() {
+      console.log('End of stored events')
+    },
+    onclose(reason) {
+      console.log('Subscription closed:', reason)
+    },
+  }
+)
+
+// Close subscription when done
+sub.close()
+```
+
+### Connection Options
+
+```ts
+// With connection timeout
+await relay.connect({ timeout: 5000 })
+
+// Custom WebSocket implementation (useful for testing or Node.js)
+const relay = new Relay('wss://relay.example.com', {
+  websocketImplementation: MyWebSocket,
+})
+```
+
+## RelayPool
+
+Manage connections to multiple relays:
+
+```ts
+import { RelayPool } from 'nostr-core'
+
+const pool = new RelayPool()
+```
+
+### Subscribing Across Relays
+
+```ts
+const relays = ['wss://relay1.example.com', 'wss://relay2.example.com']
+
+const sub = pool.subscribe(
+  relays,
+  { kinds: [1], limit: 10 },
+  {
+    onevent(event) {
+      console.log('Event from any relay:', event.content)
+    },
+    oneose() {
+      console.log('All relays finished')
+    },
+  }
+)
+
+sub.close()
+```
+
+### Publishing to Multiple Relays
+
+```ts
+const results = await pool.publish(relays, event)
+```
+
+### Querying
+
+```ts
+const events = await pool.querySync(relays, {
+  kinds: [1],
+  authors: ['pubkey...'],
+  limit: 50,
+})
+```
+
+### Pool Options
+
+```ts
+const pool = new RelayPool({
+  websocketImplementation: MyWebSocket,
+  maxWaitForConnection: 5000,
+})
+```
+
+### Connection Management
+
+```ts
+const relay = await pool.ensureRelay('wss://relay.example.com')
+const status = pool.listConnectionStatus()
+pool.close(['wss://relay1.example.com'])
+pool.close() // close all
+```
+
+---
+
+# Error Handling
+
+nostr-core provides a hierarchy of typed error classes so you can catch and handle specific failure modes.
+
+## Error Hierarchy
+
+```
+Error
+└── NWCError (code: string)
+    ├── NWCWalletError          - wallet rejected the request
+    ├── NWCTimeoutError         - generic timeout
+    │   ├── NWCPublishTimeoutError  - relay didn't acknowledge the event
+    │   └── NWCReplyTimeoutError    - wallet didn't respond in time
+    ├── NWCPublishError         - relay rejected the event
+    ├── NWCConnectionError      - couldn't connect to relay
+    ├── NWCDecryptionError      - couldn't decrypt wallet response
+    ├── LightningAddressError   - Lightning Address resolution failed
+    └── FiatConversionError     - fiat-to-sats conversion failed
+```
+
+Every error has a `code` property for programmatic handling:
+
+| Error Class | Code |
+|-------------|------|
+| `NWCWalletError` | Wallet-specific (e.g. `"INSUFFICIENT_BALANCE"`) |
+| `NWCPublishTimeoutError` | `"PUBLISH_TIMEOUT"` |
+| `NWCReplyTimeoutError` | `"REPLY_TIMEOUT"` |
+| `NWCPublishError` | `"PUBLISH_ERROR"` |
+| `NWCConnectionError` | `"CONNECTION_ERROR"` |
+| `NWCDecryptionError` | `"DECRYPTION_ERROR"` |
+| `LightningAddressError` | `"LIGHTNING_ADDRESS_ERROR"` |
+| `FiatConversionError` | `"FIAT_CONVERSION_ERROR"` |
+
+## Catching Errors
+
+### Catch Everything
+
+```ts
+import { NWCError } from 'nostr-core'
+
+try {
+  await nwc.payInvoice('lnbc...')
+} catch (err) {
+  if (err instanceof NWCError) {
+    console.error(`NWC error [${err.code}]: ${err.message}`)
+  }
+}
+```
+
+### Catch Specific Types
+
+```ts
+import {
+  NWCWalletError,
+  NWCTimeoutError,
+  NWCConnectionError,
+} from 'nostr-core'
+
+try {
+  await nwc.payInvoice('lnbc...')
+} catch (err) {
+  if (err instanceof NWCWalletError) {
+    console.error(`Wallet error [${err.code}]: ${err.message}`)
+  } else if (err instanceof NWCTimeoutError) {
+    console.error('Operation timed out:', err.message)
+  } else if (err instanceof NWCConnectionError) {
+    console.error('Not connected to relay')
+  } else {
+    throw err
+  }
+}
+```
+
+### Catch by Error Code
+
+```ts
+import { NWCError } from 'nostr-core'
+
+try {
+  await nwc.payInvoice('lnbc...')
+} catch (err) {
+  if (err instanceof NWCError) {
+    switch (err.code) {
+      case 'INSUFFICIENT_BALANCE':
+        console.error('Not enough funds')
+        break
+      case 'REPLY_TIMEOUT':
+        console.error('Wallet is not responding')
+        break
+      case 'CONNECTION_ERROR':
+        console.error('Lost connection to relay')
+        break
+      default:
+        console.error(`Error [${err.code}]: ${err.message}`)
+    }
+  }
+}
+```
+
+## Timeouts
+
+The NWC client has two configurable timeouts:
+
+```ts
+const nwc = new NWC(connectionString)
+
+// Time to wait for relay to acknowledge a published event (default: 5s)
+nwc.publishTimeout = 10000
+
+// Time to wait for wallet to reply to a request (default: 60s)
+nwc.replyTimeout = 30000
+```
+
+Some methods use shorter reply timeouts internally:
+- `getInfo()` - 10 seconds
+- `getBalance()` - 10 seconds
+- `getBudget()` - 10 seconds
+- `listTransactions()` - 10 seconds
+
+---
+
+# API Reference: NWC
+
+The main class for interacting with NWC-compatible wallets.
+
+## Import
+
+```ts
+import { NWC } from 'nostr-core'
+```
+
+## Constructor
+
+```ts
+new NWC(connectionString: string)
+```
+
+Parses an NWC connection string and creates a client instance.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `connectionString` | `string` | NWC URI (`nostr+walletconnect://...` or `nostrwalletconnect://...`) |
+
+**Throws:** `NWCError` with code `'INVALID_CONNECTION_STRING'` if the URI can't be parsed.
+
+The connection string format is:
+
+```
+nostr+walletconnect://<walletPubkey>?relay=<relayUrl>&secret=<hexOrNsec>
+```
+
+## Static Methods
+
+### parseConnectionString
+
+```ts
+NWC.parseConnectionString(connectionString: string): NWCConnectionOptions
+```
+
+Parses a connection string without creating a client.
+
+**Returns:** `NWCConnectionOptions`
+
+## Properties
+
+### replyTimeout
+
+```ts
+nwc.replyTimeout: number // default: 60000
+```
+
+Milliseconds to wait for a wallet reply.
+
+### publishTimeout
+
+```ts
+nwc.publishTimeout: number // default: 5000
+```
+
+Milliseconds to wait for relay acknowledgement when publishing events.
+
+### connected
+
+```ts
+nwc.connected: boolean // getter
+```
+
+Whether the underlying relay connection is active.
+
+## Connection
+
+### connect
+
+```ts
+await nwc.connect(): Promise<void>
+```
+
+Connects to the relay and auto-detects encryption (NIP-04 or NIP-44).
+
+**Throws:** `NWCConnectionError` on failure.
+
+### close
+
+```ts
+nwc.close(): void
+```
+
+Closes the notification subscription, relay connection, and clears all event handlers.
+
+## Wallet Methods
+
+### getInfo
+
+```ts
+await nwc.getInfo(): Promise<GetInfoResponse>
+```
+
+### getBalance
+
+```ts
+await nwc.getBalance(): Promise<GetBalanceResponse>
+```
+
+### getBudget
+
+```ts
+await nwc.getBudget(): Promise<GetBudgetResponse>
+```
+
+### payInvoice
+
+```ts
+await nwc.payInvoice(invoice: string, amount?: number): Promise<PayResponse>
+```
+
+### payKeysend
+
+```ts
+await nwc.payKeysend(params: PayKeysendRequest): Promise<PayResponse>
+```
+
+### makeInvoice
+
+```ts
+await nwc.makeInvoice(params: MakeInvoiceRequest): Promise<Transaction>
+```
+
+### lookupInvoice
+
+```ts
+await nwc.lookupInvoice(params: LookupInvoiceRequest): Promise<Transaction>
+```
+
+### listTransactions
+
+```ts
+await nwc.listTransactions(params?: ListTransactionsRequest): Promise<ListTransactionsResponse>
+```
+
+### signMessage
+
+```ts
+await nwc.signMessage(message: string): Promise<SignMessageResponse>
+```
+
+### payLightningAddress
+
+```ts
+await nwc.payLightningAddress(address: string, amountSats: number): Promise<PayResponse & { invoice: string }>
+```
+
+### payLightningAddressFiat
+
+```ts
+await nwc.payLightningAddressFiat(address: string, fiatAmount: number, currency: string): Promise<PayResponse & { invoice: string, sats: number, rate: number }>
+```
+
+## Notifications
+
+### subscribeNotifications
+
+```ts
+await nwc.subscribeNotifications(
+  onNotification: (notification: Nip47Notification) => void,
+  notificationTypes?: Nip47NotificationType[]
+): Promise<() => void>
+```
+
+Subscribes to NIP-47 wallet notifications (kind `23196` for NIP-04, kind `23197` for NIP-44). Returns an unsubscribe function.
+
+- Automatically selects the correct notification event kind based on encryption type
+- Filters notifications by type if `notificationTypes` is provided
+- Auto-reconnects with a 1-second delay if the relay connection closes
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `onNotification` | `Function` | Callback invoked with each notification |
+| `notificationTypes` | `Nip47NotificationType[]?` | Optional filter for notification types |
+
+**Returns:** `Promise<() => void>` - call the returned function to unsubscribe.
+
+**Throws:** `NWCConnectionError` if not connected.
+
+### on (Event Emitter)
+
+```ts
+nwc.on(event: Nip47NotificationType, handler: (notification: Nip47Notification) => void): void
+```
+
+Registers a handler for payment notifications. If already connected, starts the notification subscription automatically.
+
+| Event | Description |
+|-------|-------------|
+| `'payment_received'` | Incoming payment received |
+| `'payment_sent'` | Outgoing payment completed |
+| `'hold_invoice_accepted'` | Hold invoice accepted by payer |
+
+### off
+
+```ts
+nwc.off(event: Nip47NotificationType, handler: Function): void
+```
+
+Removes a previously registered event handler.
+
+---
+
+# API Reference: Types
+
+All TypeScript types exported by nostr-core.
+
+## Import
+
+```ts
+import type {
+  GetInfoResponse,
+  GetBalanceResponse,
+  GetBudgetResponse,
+  PayResponse,
+  Transaction,
+  LightningAddressResponse,
+  FiatRate,
+  FiatConversion,
+  // ... etc
+} from 'nostr-core'
+```
+
+## NWC Types
+
+### NWCConnectionOptions
+
+```ts
+type NWCConnectionOptions = {
+  walletPubkey: string
+  relayUrl: string
+  secret: string
+}
+```
+
+### EncryptionType
+
+```ts
+type EncryptionType = 'nip04' | 'nip44'
+```
+
+### Nip47Method
+
+```ts
+type Nip47Method =
+  | 'get_info'
+  | 'get_balance'
+  | 'get_budget'
+  | 'make_invoice'
+  | 'pay_invoice'
+  | 'pay_keysend'
+  | 'lookup_invoice'
+  | 'list_transactions'
+  | 'sign_message'
+```
+
+### Nip47NotificationType
+
+```ts
+type Nip47NotificationType = 'payment_received' | 'payment_sent' | 'hold_invoice_accepted'
+```
+
+### Nip47Notification
+
+```ts
+type Nip47Notification = {
+  notification_type: Nip47NotificationType
+  notification: Transaction
+}
+```
+
+## Response Types
+
+### GetInfoResponse
+
+```ts
+type GetInfoResponse = {
+  alias: string
+  color: string
+  pubkey: string
+  network: string
+  block_height: number
+  block_hash: string
+  methods: string[]
+  notifications?: string[]
+}
+```
+
+### GetBalanceResponse
+
+```ts
+type GetBalanceResponse = {
+  balance: number // millisatoshis
+}
+```
+
+### GetBudgetResponse
+
+```ts
+type GetBudgetResponse = {
+  used_budget?: number
+  total_budget?: number
+  renews_at?: number
+  renewal_period?: string
+}
+```
+
+### PayResponse
+
+```ts
+type PayResponse = {
+  preimage: string
+  fees_paid?: number
+}
+```
+
+### Transaction
+
+```ts
+type Transaction = {
+  type: 'incoming' | 'outgoing'
+  state: 'settled' | 'pending' | 'failed' | 'accepted'
+  invoice: string
+  description: string
+  description_hash: string
+  preimage: string
+  payment_hash: string
+  amount: number         // millisatoshis
+  fees_paid: number
+  settled_at: number     // unix timestamp
+  created_at: number     // unix timestamp
+  expires_at: number     // unix timestamp
+  metadata?: Record<string, unknown>
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `state` | `string` | Transaction state: `'settled'`, `'pending'`, `'failed'`, or `'accepted'` (hold invoices) |
+
+### ListTransactionsResponse
+
+```ts
+type ListTransactionsResponse = {
+  transactions: Transaction[]
+}
+```
+
+### SignMessageResponse
+
+```ts
+type SignMessageResponse = {
+  message: string
+  signature: string
+}
+```
+
+### LightningAddressResponse
+
+```ts
+type LightningAddressResponse = {
+  invoice: string
+  metadata?: Record<string, unknown>
+}
+```
+
+### FiatRate
+
+```ts
+type FiatRate = {
+  rate: number       // BTC price in the given fiat currency
+  currency: string   // lowercase currency code
+  timestamp: number  // when the rate was fetched (ms)
+}
+```
+
+### FiatConversion
+
+```ts
+type FiatConversion = {
+  sats: number       // converted satoshi amount
+  rate: number       // BTC price used for conversion
+  currency: string   // lowercase currency code
+}
+```
+
+## Request Types
+
+### MakeInvoiceRequest
+
+```ts
+type MakeInvoiceRequest = {
+  amount: number           // millisatoshis
+  description?: string
+  description_hash?: string
+  expiry?: number          // seconds
+}
+```
+
+### PayInvoiceRequest
+
+```ts
+type PayInvoiceRequest = {
+  invoice: string
+  amount?: number // millisatoshis, for zero-amount invoices
+}
+```
+
+### PayKeysendRequest
+
+```ts
+type PayKeysendRequest = {
+  amount: number   // millisatoshis
+  pubkey: string
+  preimage?: string
+  tlv_records?: Array<{ type: number; value: string }>
+}
+```
+
+### LookupInvoiceRequest
+
+```ts
+type LookupInvoiceRequest = {
+  payment_hash?: string
+  invoice?: string
+}
+```
+
+### ListTransactionsRequest
+
+```ts
+type ListTransactionsRequest = {
+  from?: number
+  until?: number
+  limit?: number
+  offset?: number
+  unpaid?: boolean
+  type?: 'incoming' | 'outgoing'
+}
+```
+
+### SignMessageRequest
+
+```ts
+type SignMessageRequest = {
+  message: string
+}
+```
+
+---
+
+# API Reference: Errors
+
+nostr-core uses a hierarchy of error classes with `code` properties for programmatic handling.
+
+## Import
+
+```ts
+import {
+  NWCError,
+  NWCWalletError,
+  NWCTimeoutError,
+  NWCPublishTimeoutError,
+  NWCReplyTimeoutError,
+  NWCPublishError,
+  NWCConnectionError,
+  NWCDecryptionError,
+  LightningAddressError,
+  FiatConversionError,
+} from 'nostr-core'
+```
+
+## Hierarchy
+
+```
+Error
+└── NWCError
+    ├── NWCWalletError
+    ├── NWCTimeoutError
+    │   ├── NWCPublishTimeoutError
+    │   └── NWCReplyTimeoutError
+    ├── NWCPublishError
+    ├── NWCConnectionError
+    ├── NWCDecryptionError
+    ├── LightningAddressError
+    └── FiatConversionError
+```
+
+## NWCError
+
+```ts
+class NWCError extends Error {
+  code: string
+  constructor(message: string, code: string)
+}
+```
+
+Base class for all NWC errors.
+
+## NWCWalletError
+
+Wallet rejected the request. Code contains the wallet's error code (e.g. `"INSUFFICIENT_BALANCE"`, `"QUOTA_EXCEEDED"`).
+
+## NWCPublishTimeoutError
+
+Relay did not acknowledge the published event. Code: `'PUBLISH_TIMEOUT'`.
+
+## NWCReplyTimeoutError
+
+Wallet did not reply in time. Code: `'REPLY_TIMEOUT'`.
+
+## NWCPublishError
+
+Relay rejected the published event (NACK). Code: `'PUBLISH_ERROR'`.
+
+## NWCConnectionError
+
+Failed to establish WebSocket connection. Code: `'CONNECTION_ERROR'`.
+
+## NWCDecryptionError
+
+Failed to decrypt the wallet's response. Code: `'DECRYPTION_ERROR'`.
+
+## LightningAddressError
+
+Lightning Address resolution failed (invalid address, LNURL fetch failure, etc.). Code: `'LIGHTNING_ADDRESS_ERROR'`.
+
+## FiatConversionError
+
+Fiat-to-sats conversion failed (network error, unsupported currency, invalid amount). Code: `'FIAT_CONVERSION_ERROR'`.
+
+---
+
+# API Reference: Lightning Address
+
+Functions for resolving and paying Lightning Addresses via LNURL-pay.
+
+## Import
+
+```ts
+import { fetchInvoice, validateLightningAddress, parseLightningAddress } from 'nostr-core'
+```
+
+## fetchInvoice
+
+```ts
+async function fetchInvoice(address: string, amountSats: number): Promise<LightningAddressResponse>
+```
+
+Resolves a Lightning Address and fetches a BOLT-11 invoice for the given amount.
+
+**Returns:** `{ invoice: string, metadata?: Record<string, unknown> }`
+
+**Throws:** `LightningAddressError` on invalid address or LNURL failure.
+
+## validateLightningAddress
+
+```ts
+function validateLightningAddress(address: string): boolean
+```
+
+Returns `true` if the address matches the `user@domain` format.
+
+## parseLightningAddress
+
+```ts
+function parseLightningAddress(address: string): { username: string, domain: string }
+```
+
+Splits a Lightning Address into username and domain parts.
+
+---
+
+# API Reference: Fiat Conversion
+
+Zero-dependency fiat currency conversion using public exchange rate APIs (CoinGecko). Rates are cached for 60 seconds.
+
+## Import
+
+```ts
+import { getExchangeRate, fiatToSats, satsToFiat } from 'nostr-core'
+```
+
+## getExchangeRate
+
+```ts
+async function getExchangeRate(currency: string): Promise<FiatRate>
+```
+
+Fetches the current BTC price in the given fiat currency. Results are cached for 60 seconds.
+
+**Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `currency` | `string` | Currency code (e.g. `'usd'`, `'eur'`, `'gbp'`, `'jpy'`) |
+
+**Returns:** `FiatRate`
+
+```ts
+type FiatRate = { rate: number, currency: string, timestamp: number }
+```
+
+**Throws:** `FiatConversionError` on network failure or unsupported currency.
+
+## fiatToSats
+
+```ts
+async function fiatToSats(amount: number, currency: string): Promise<FiatConversion>
+```
+
+Converts a fiat amount to satoshis using the current exchange rate.
+
+**Returns:** `FiatConversion`
+
+```ts
+type FiatConversion = { sats: number, rate: number, currency: string }
+```
+
+## satsToFiat
+
+```ts
+async function satsToFiat(sats: number, currency: string): Promise<{ amount: number, rate: number, currency: string }>
+```
+
+Converts satoshis to a fiat amount using the current exchange rate.
+
+---
+
+# API Reference: Crypto
+
+Key generation and derivation functions.
+
+## Import
+
+```ts
+import { generateSecretKey, getPublicKey } from 'nostr-core'
+```
+
+## generateSecretKey
+
+```ts
+function generateSecretKey(): Uint8Array
+```
+
+Generates a random secp256k1 secret key. Returns a 32-byte `Uint8Array`.
+
+## getPublicKey
+
+```ts
+function getPublicKey(secretKey: Uint8Array): string
+```
+
+Derives the public key from a secret key. Returns a 64-character hex-encoded x-only public key.
+
+---
+
+# API Reference: Event
+
+Functions for creating, signing, and verifying Nostr events.
+
+## Import
+
+```ts
+import {
+  finalizeEvent,
+  verifyEvent,
+  getEventHash,
+  serializeEvent,
+  validateEvent,
+  verifiedSymbol,
+} from 'nostr-core'
+```
+
+## Types
+
+### NostrEvent
+
+```ts
+type NostrEvent = {
+  kind: number
+  tags: string[][]
+  content: string
+  created_at: number
+  pubkey: string
+  id: string
+  sig: string
+  [verifiedSymbol]?: boolean
+}
+```
+
+### EventTemplate
+
+```ts
+type EventTemplate = Pick<NostrEvent, 'kind' | 'tags' | 'content' | 'created_at'>
+```
+
+### UnsignedEvent
+
+```ts
+type UnsignedEvent = Pick<NostrEvent, 'kind' | 'tags' | 'content' | 'created_at' | 'pubkey'>
+```
+
+### VerifiedEvent
+
+```ts
+interface VerifiedEvent extends NostrEvent {
+  [verifiedSymbol]: true
+}
+```
+
+## finalizeEvent
+
+```ts
+function finalizeEvent(template: EventTemplate, secretKey: Uint8Array): VerifiedEvent
+```
+
+Signs an event template, adding `pubkey`, `id`, and `sig` fields.
+
+## verifyEvent
+
+```ts
+function verifyEvent(event: NostrEvent): event is VerifiedEvent
+```
+
+Verifies an event's hash and schnorr signature. TypeScript type guard.
+
+## getEventHash
+
+```ts
+function getEventHash(event: UnsignedEvent): string
+```
+
+Computes the SHA-256 hash of a serialized event.
+
+## serializeEvent
+
+```ts
+function serializeEvent(event: UnsignedEvent): string
+```
+
+Serializes an event to NIP-01 canonical JSON: `[0, "<pubkey>", <created_at>, <kind>, <tags>, "<content>"]`
+
+## validateEvent
+
+```ts
+function validateEvent<T>(event: T): event is T & UnsignedEvent
+```
+
+Validates an event's structure (kind, content, created_at, pubkey, tags).
+
+---
+
+# API Reference: Relay
+
+WebSocket connection to a single Nostr relay.
+
+## Import
+
+```ts
+import { Relay } from 'nostr-core'
+```
+
+## Constructor
+
+```ts
+new Relay(url: string, opts?: {
+  websocketImplementation?: typeof WebSocket
+})
+```
+
+## Properties
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `url` | `string` | - | Normalized relay URL (readonly) |
+| `connected` | `boolean` | - | Whether WebSocket is active (getter) |
+| `eoseTimeout` | `number` | `4400` | EOSE timeout in ms |
+| `publishTimeout` | `number` | `4400` | Publish OK timeout in ms |
+| `openSubs` | `Map<string, Subscription>` | - | Active subscriptions |
+
+## Methods
+
+### connect
+
+```ts
+await relay.connect(opts?: { timeout?: number }): Promise<void>
+```
+
+### publish
+
+```ts
+await relay.publish(event: NostrEvent): Promise<string>
+```
+
+### subscribe
+
+```ts
+relay.subscribe(filters: Filter[], params: SubscriptionParams): Subscription
+```
+
+### close
+
+```ts
+relay.close(): void
+```
+
+## Subscription
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `relay` | `Relay` | Parent relay (readonly) |
+| `id` | `string` | Subscription ID (readonly) |
+| `closed` | `boolean` | Whether closed |
+| `eosed` | `boolean` | Whether EOSE received |
+| `onevent` | `(evt: NostrEvent) => void` | Event callback |
+| `oneose` | `(() => void)?` | EOSE callback |
+| `onclose` | `((reason: string) => void)?` | Close callback |
+
+### SubscriptionParams
+
+```ts
+type SubscriptionParams = {
+  onevent?: (evt: NostrEvent) => void
+  oneose?: () => void
+  onclose?: (reason: string) => void
+  eoseTimeout?: number
+}
+```
+
+---
+
+# API Reference: RelayPool
+
+Manages connections to multiple Nostr relays.
+
+## Import
+
+```ts
+import { RelayPool } from 'nostr-core'
+```
+
+## Constructor
+
+```ts
+new RelayPool(opts?: {
+  websocketImplementation?: typeof WebSocket
+  maxWaitForConnection?: number  // default: 3000
+})
+```
+
+## Methods
+
+### ensureRelay
+
+```ts
+await pool.ensureRelay(url: string, opts?: { connectionTimeout?: number }): Promise<Relay>
+```
+
+### subscribe
+
+```ts
+pool.subscribe(relayUrls: string[], filter: Filter, params: PoolSubscribeParams): SubCloser
+```
+
+The `oneose` callback fires when **all** relays have sent EOSE.
+
+### publish
+
+```ts
+await pool.publish(relayUrls: string[], event: NostrEvent): Promise<string[]>
+```
+
+### querySync
+
+```ts
+await pool.querySync(relayUrls: string[], filter: Filter, params?: { maxWait?: number }): Promise<NostrEvent[]>
+```
+
+### listConnectionStatus
+
+```ts
+pool.listConnectionStatus(): Map<string, boolean>
+```
+
+### close
+
+```ts
+pool.close(relayUrls?: string[]): void
+```
+
+## Types
+
+```ts
+type SubCloser = { close: (reason?: string) => void }
+
+type PoolSubscribeParams = SubscriptionParams & {
+  maxWait?: number
+  id?: string
+  label?: string
+}
+```
+
+---
+
+# API Reference: Filter
+
+Types and functions for filtering Nostr events.
+
+## Import
+
+```ts
+import { matchFilter, matchFilters } from 'nostr-core'
+```
+
+## Filter Type
+
+```ts
+type Filter = {
+  ids?: string[]
+  kinds?: number[]
+  authors?: string[]
+  since?: number
+  until?: number
+  limit?: number
+  search?: string
+  [key: `#${string}`]: string[] | undefined
+}
+```
+
+## matchFilter
+
+```ts
+function matchFilter(filter: Filter, event: NostrEvent): boolean
+```
+
+Tests whether an event matches a single filter (logical AND of all conditions).
+
+## matchFilters
+
+```ts
+function matchFilters(filters: Filter[], event: NostrEvent): boolean
+```
+
+Tests whether an event matches **any** filter (logical OR).
+
+---
+
+# API Reference: NIP-04
+
+AES-256-CBC encryption for Nostr direct messages (legacy).
+
+NIP-04 is considered legacy. For new applications, prefer NIP-44 which provides authenticated encryption and padding.
+
+## Import
+
+```ts
+import { nip04 } from 'nostr-core'
+```
+
+## nip04.encrypt
+
+```ts
+function encrypt(secretKey: string | Uint8Array, pubkey: string, text: string): string
+```
+
+Returns `<base64_ciphertext>?iv=<base64_iv>`.
+
+## nip04.decrypt
+
+```ts
+function decrypt(secretKey: string | Uint8Array, pubkey: string, data: string): string
+```
+
+---
+
+# API Reference: NIP-44
+
+ChaCha20 authenticated encryption with HMAC-SHA256 and padding.
+
+## Import
+
+```ts
+import { nip44 } from 'nostr-core'
+```
+
+## nip44.getConversationKey
+
+```ts
+function getConversationKey(privkeyA: Uint8Array, pubkeyB: string): Uint8Array
+```
+
+Pre-computes a shared conversation key using ECDH + HKDF-SHA256. Compute once per conversation partner.
+
+## nip44.encrypt
+
+```ts
+function encrypt(plaintext: string, conversationKey: Uint8Array, nonce?: Uint8Array): string
+```
+
+Returns base64-encoded payload: `[version(1), nonce(32), ciphertext(?), mac(32)]`.
+
+## nip44.decrypt
+
+```ts
+function decrypt(payload: string, conversationKey: Uint8Array): string
+```
+
+Decrypts and verifies. Throws on invalid base64, unsupported version, MAC failure, or invalid padding.
+
+---
+
+# API Reference: NIP-19
+
+Bech32 encoding and decoding for Nostr identifiers.
+
+## Import
+
+```ts
+import { nip19 } from 'nostr-core'
+```
+
+## decode
+
+```ts
+function decode(code: string): DecodedResult
+```
+
+```ts
+type DecodedResult =
+  | { type: 'npub'; data: string }
+  | { type: 'nsec'; data: Uint8Array }
+  | { type: 'note'; data: string }
+  | { type: 'nprofile'; data: ProfilePointer }
+  | { type: 'nevent'; data: EventPointer }
+  | { type: 'naddr'; data: AddressPointer }
+```
+
+## Encode Functions
+
+```ts
+function nsecEncode(key: Uint8Array): string
+function npubEncode(hex: string): string
+function noteEncode(hex: string): string
+function nprofileEncode(profile: ProfilePointer): string
+function neventEncode(event: EventPointer): string
+function naddrEncode(addr: AddressPointer): string
+```
+
+## Pointer Types
+
+```ts
+type ProfilePointer = { pubkey: string; relays?: string[] }
+type EventPointer = { id: string; relays?: string[]; author?: string; kind?: number }
+type AddressPointer = { identifier: string; pubkey: string; kind: number; relays?: string[] }
+```
+
+---
+
+# API Reference: Utils
+
+Utility functions and constants.
+
+## Import
+
+```ts
+import {
+  normalizeURL,
+  bytesToHex,
+  hexToBytes,
+  randomBytes,
+  utf8Encoder,
+  utf8Decoder,
+} from 'nostr-core'
+```
+
+## normalizeURL
+
+```ts
+function normalizeURL(url: string): string
+```
+
+Normalizes a relay URL: `http://` -> `ws://`, `https://` -> `wss://`, removes trailing slashes, removes default ports, sorts query params.
+
+## bytesToHex / hexToBytes
+
+```ts
+function bytesToHex(bytes: Uint8Array): string
+function hexToBytes(hex: string): Uint8Array
+```
+
+Re-exported from `@noble/hashes/utils`.
+
+## randomBytes
+
+```ts
+function randomBytes(len: number): Uint8Array
+```
+
+Cryptographically secure random bytes.
+
+## utf8Encoder / utf8Decoder
+
+```ts
+const utf8Encoder: TextEncoder
+const utf8Decoder: TextDecoder
+```

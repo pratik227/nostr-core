@@ -1,0 +1,49 @@
+{
+  "name": "nostr-core",
+  "version": "0.1.0",
+  "description": "Dead-simple, vendor-neutral NWC (Nostr Wallet Connect) client",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/pratik227"
+  },
+  "homepage": "https://nostr-core.netlify.app",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
+  },
+  "dependencies": {
+    "@iconify/vue": "^5.0.0",
+    "@noble/ciphers": "^1.2.0",
+    "@noble/curves": "^1.8.0",
+    "@noble/hashes": "^1.7.0",
+    "@scure/base": "^1.2.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitepress": "^1.6.3"
+  },
+  "license": "MIT",
+  "keywords": [
+    "nostr",
+    "nwc",
+    "wallet-connect",
+    "lightning",
+    "bitcoin",
+    "nip-47"
+  ]
+}

@@ -1,0 +1,39 @@
+# nostr-core
+
+> Dead-simple, vendor-neutral NWC (Nostr Wallet Connect) client library for JavaScript/TypeScript. Control any Lightning wallet programmatically via NIP-47.
+
+nostr-core lets agents and applications pay invoices, check balances, create invoices, and listen for payments through any NWC-compatible Lightning wallet. One connection string, zero framework dependencies, auto-encryption. Works in Node.js 18+, Deno, Bun, and Cloudflare Workers. Free and open source (MIT).
+
+## Guides
+
+- [Introduction](guide/introduction.md): What NWC is, why nostr-core exists, what's included
+- [Installation](guide/installation.md): npm/pnpm/yarn setup, requirements, dependency overview
+- [Quick Start](guide/quick-start.md): Connect to a wallet, pay invoices, create invoices, listen for payments
+- [Wallet Operations](guide/wallet-operations.md): Every NWC method with parameters, return values, and examples
+- [Encryption](guide/encryption.md): NIP-04 vs NIP-44, auto-detection, direct usage
+- [Relays](guide/relays.md): Relay and RelayPool usage for custom Nostr applications
+- [Error Handling](guide/error-handling.md): Typed error hierarchy, catch patterns, timeouts
+- [Comparison](guide/comparison.md): nostr-core vs @getalby/sdk - install size, dependency count, feature parity
+
+## API Reference
+
+- [NWC](api/nwc.md): Main NWC client class - constructor, wallet methods, notifications, event emitter
+- [Lightning Address](api/lightning-address.md): fetchInvoice, validateLightningAddress, parseLightningAddress
+- [Fiat Conversion](api/fiat.md): getExchangeRate, fiatToSats, satsToFiat - zero-dependency fiat currency conversion
+- [Types](api/types.md): All TypeScript types - Transaction, requests, responses, notifications, FiatRate, FiatConversion
+- [Errors](api/errors.md): Error class hierarchy with codes (8 classes including LightningAddressError, FiatConversionError)
+- [Crypto](api/crypto.md): Key generation (generateSecretKey, getPublicKey)
+- [Event](api/event.md): Nostr event signing, verification, hashing
+- [Relay](api/relay.md): Single relay WebSocket connection and subscriptions
+- [RelayPool](api/pool.md): Multi-relay connection management
+- [Filter](api/filter.md): Event filtering types and match functions
+- [NIP-04](api/nip04.md): AES-256-CBC encryption (legacy)
+- [NIP-44](api/nip44.md): ChaCha20 authenticated encryption (recommended)
+- [NIP-19](api/nip19.md): Bech32 encoding/decoding (npub, nsec, note, nprofile, nevent, naddr)
+- [Utils](api/utils.md): normalizeURL, bytesToHex, hexToBytes, randomBytes
+
+## Agent Integration
+
+- [Agent Integration Guide](/AGENT_README.md): Complete guide for AI agents with request/response examples
+- [Integration Prompt](llm/integration-prompt.md): Copy-paste system prompt and code templates for agent developers
+- [Full Documentation](llms-full.txt): All documentation in a single file for LLM context

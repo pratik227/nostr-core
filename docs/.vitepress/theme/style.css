@@ -1,0 +1,184 @@
+/**
+ * nostr-core custom theme
+ * Brand colors from NWC logo:
+ *   Gold:   #FFCA4A
+ *   Orange: #F7931A
+ *   Purple: #897FFF
+ */
+
+:root {
+  /* Brand colors - from NWC logo gradient */
+  --nwc-gold: #FFCA4A;
+  --nwc-orange: #F7931A;
+  --nwc-purple: #897FFF;
+
+  --vp-c-brand-1: var(--nwc-orange);
+  --vp-c-brand-2: var(--nwc-gold);
+  --vp-c-brand-3: #d47a15;
+  --vp-c-brand-soft: rgba(247, 147, 26, 0.14);
+
+  /* Tip container - purple accent */
+  --vp-custom-block-tip-border: var(--nwc-purple);
+  --vp-custom-block-tip-text: var(--nwc-purple);
+  --vp-custom-block-tip-bg: rgba(137, 127, 255, 0.1);
+
+  /* Info container - gold accent */
+  --vp-custom-block-info-border: var(--nwc-gold);
+  --vp-custom-block-info-text: var(--nwc-orange);
+  --vp-custom-block-info-bg: rgba(255, 202, 74, 0.1);
+
+  /* Button brand overrides - orange base */
+  --vp-button-brand-border: transparent;
+  --vp-button-brand-text: #fff;
+  --vp-button-brand-bg: var(--nwc-orange);
+  --vp-button-brand-hover-border: transparent;
+  --vp-button-brand-hover-text: #fff;
+  --vp-button-brand-hover-bg: #d47a15;
+  --vp-button-brand-active-border: transparent;
+  --vp-button-brand-active-text: #fff;
+  --vp-button-brand-active-bg: #b86812;
+
+  /* Alt button - purple */
+  --vp-button-alt-border: transparent;
+  --vp-button-alt-text: var(--nwc-purple);
+  --vp-button-alt-bg: rgba(137, 127, 255, 0.1);
+  --vp-button-alt-hover-border: transparent;
+  --vp-button-alt-hover-text: #fff;
+  --vp-button-alt-hover-bg: var(--nwc-purple);
+  --vp-button-alt-active-border: transparent;
+  --vp-button-alt-active-text: #fff;
+  --vp-button-alt-active-bg: #7a6fe6;
+
+  /* Home hero name gradient - gold to orange like the logo */
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: linear-gradient(
+    180deg,
+    #FFCA4A -5.76%,
+    #F7931A 100%
+  );
+
+  /* Hero image glow - gold/purple split */
+  --vp-home-hero-image-background-image: linear-gradient(
+    -45deg,
+    rgba(247, 147, 26, 0.3) 50%,
+    rgba(137, 127, 255, 0.3) 50%
+  );
+  --vp-home-hero-image-filter: blur(44px);
+}
+
+.dark {
+  --vp-c-brand-1: var(--nwc-gold);
+  --vp-c-brand-2: var(--nwc-orange);
+  --vp-c-brand-3: #FFCA4A;
+  --vp-c-brand-soft: rgba(255, 202, 74, 0.14);
+
+  --vp-custom-block-tip-bg: rgba(137, 127, 255, 0.08);
+  --vp-custom-block-info-bg: rgba(255, 202, 74, 0.08);
+
+  --vp-button-alt-bg: rgba(137, 127, 255, 0.15);
+
+  --vp-home-hero-image-background-image: linear-gradient(
+    -45deg,
+    rgba(255, 202, 74, 0.2) 50%,
+    rgba(137, 127, 255, 0.2) 50%
+  );
+}
+
+/* ---- Hero section ---- */
+
+.VPHero .name {
+  font-size: 3rem !important;
+}
+
+/* ---- Sidebar active link - orange ---- */
+
+.VPSidebar .is-active > .link > .text {
+  color: var(--nwc-orange) !important;
+}
+
+/* ---- Nav bar brand link ---- */
+
+.VPNavBarTitle .title {
+  color: var(--vp-c-text-1);
+}
+
+/* ---- Stat banner below hero ---- */
+
+.stat-banner {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  margin: 2rem auto 3rem;
+  padding: 2rem 1.5rem;
+  max-width: 780px;
+}
+
+/* ---- Feature card enhancements ---- */
+
+.VPFeatures .VPFeature {
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 12px;
+  transition: border-color 0.25s, box-shadow 0.25s;
+}
+
+.VPFeatures .VPFeature:hover {
+  border-color: var(--nwc-purple);
+  box-shadow: 0 2px 16px rgba(137, 127, 255, 0.15);
+}
+
+/* ---- Code block accent ---- */
+
+div[class*='language-'] {
+  border: 1px solid var(--vp-c-divider);
+}
+
+div[class*='language-']::before {
+  color: var(--nwc-purple);
+}
+
+/* ---- Comparison section ---- */
+
+.comparison-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin: 1.5rem 0;
+}
+
+/* ---- Quick example styled container ---- */
+
+.quick-example {
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin: 2rem 0;
+  background: var(--vp-c-bg-soft);
+}
+
+.quick-example h2 {
+  margin-top: 0 !important;
+}
+
+/* ---- Teaser section ---- */
+
+.teaser-section {
+  text-align: center;
+  padding: 2rem 0;
+  margin: 2rem 0;
+  border-top: 1px solid var(--vp-c-divider);
+}
+
+.teaser-section h2 {
+  border: none !important;
+  margin-top: 0 !important;
+}
+
+/* ---- Stat grid for comparison page ---- */
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
