@@ -100,7 +100,7 @@ export default defineConfig({
 
     socialLinks: [
 
-      { icon: 'github', link: 'https://github.com/pratik227' },
+      { icon: 'github', link: 'https://github.com/pratik227/nostr-core' },
       { icon: 'x', link: 'https://x.com/PratikPatel_227' },
     ],
 
