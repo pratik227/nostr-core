@@ -2,6 +2,8 @@
 
 Dead-simple, vendor-neutral [Nostr Wallet Connect (NWC)](https://github.com/nostr-protocol/nips/blob/master/47.md) client for JavaScript and TypeScript.
 
+[Demo](https://nostr-core-demo.netlify.app/)
+
 ```ts
 import { NWC } from 'nostr-core'
 
@@ -207,9 +209,9 @@ If you've used `@getalby/sdk` before, here's why `nostr-core` is a better fit fo
 | **Vendor lock-in** | None - pure NIP-47 protocol | Coupled to Alby (OAuth, webhooks, branding) | |
 | **Error handling** | Typed hierarchy (8 specific classes) | Generic errors | |
 | **Encryption** | Auto-detects NIP-04 / NIP-44 | Manual configuration | |
-| **Fiat conversion** | Built-in (zero extra deps) | Via `@getalby/lightning-tools` | |
-| **Runtime support** | Node 18+, Deno, Bun, Cloudflare Workers | Primarily Node.js | |
-| **API surface** | One class (`NWC`) | Multiple overlapping abstractions | |
+| **Fiat conversion** | Built-in (zero extra deps) | `USD()` via `LN` client (v7+), backed by `@getalby/lightning-tools` | |
+| **Runtime support** | Node 18+, Deno, Bun, Cloudflare Workers | Node.js (requires websocket polyfill pre-v18) | |
+| **API surface** | One class (`NWC`) | `LN` + `NWCClient` + `NWAClient` + `NostrWebLNProvider` + `OAuthWebLNProvider` | |
 
 **Use `@getalby/sdk`** if you need Alby OAuth or WebLN compatibility. **Use `nostr-core`** for everything else - including Lightning Address payments and fiat currency conversion, which are now supported natively.
 

@@ -90,15 +90,24 @@ nwc.close()
 
 ### @getalby/sdk - Multiple overlapping abstractions
 
-The Alby SDK exposes several classes that overlap in functionality:
+Version 7 introduced `LN` as a new high-level entry point:
 
+```ts
+import { LN, USD } from "@getalby/sdk/lnclient"
+
+await new LN(credentials).pay("lnbc...")
+await new LN(credentials).pay("hello@getalby.com", USD(1))
+```
+
+The SDK still exposes several underlying classes:
+
+- `LN` - new high-level client (v7+)
 - `NWCClient` - low-level NWC client
-- `LNClient` - high-level Lightning client with currency helpers
 - `NostrWebLNProvider` - WebLN wrapper around NWC
 - `NWAClient` - Nostr Wallet Auth for client-initiated connections
 - `OAuthWebLNProvider` - WebLN wrapper around Alby OAuth
 
-Choosing the right entry point requires understanding the tradeoffs between each class.
+The `LN` class is simpler, but the underlying layers remain. Choosing between them still requires understanding their tradeoffs.
 
 ## Error Handling
 
@@ -161,6 +170,8 @@ Errors are less structured, making it harder to distinguish between relay issues
 - **Cloudflare Workers**
 
 This is possible because the library depends only on standard Web APIs and the Noble crypto libraries (which are pure JavaScript with no native bindings).
+
+`@getalby/sdk` works on Node.js 18+ and browsers, but requires a `websocket-polyfill` package on older Node.js versions, adding another installation step for older environments.
 
 ## Full NIP-47 Coverage
 
@@ -226,7 +237,7 @@ console.log(`10,000 sats = €${amount.toFixed(2)}`)
 const result = await nwc.payLightningAddressFiat('hello@getalby.com', 5, 'usd')
 ```
 
-This eliminates `LNClient` from `@getalby/sdk` as a reason to use the Alby SDK.
+The `@getalby/sdk` v7 `LN` client also exposes a `USD()` fiat helper, but it relies on `@getalby/lightning-tools` under the hood. `nostr-core` delivers the same capability with zero extra dependencies.
 
 ## When to Use @getalby/sdk
 
