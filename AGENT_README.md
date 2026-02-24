@@ -442,6 +442,6 @@ Use these when your agent needs human input:
 ## Links
 
 - **npm:** https://www.npmjs.com/package/nostr-core
-- **Source:** https://github.com/pratik227/nostr-core
+- **Source:** https://github.com/nostr-core-org/nostr-core
 - **NIP-47 Spec:** https://github.com/nostr-protocol/nips/blob/master/47.md
 - **License:** MIT

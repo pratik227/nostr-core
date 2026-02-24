@@ -13,8 +13,8 @@ Ready-made files for AI agents to discover, understand, and integrate with nostr
 | File | Description |
 |------|-------------|
 | [`/llms.txt`](/llms.txt) | Discovery index — structured overview of all docs, following the [llms.txt standard](https://llmstxt.org/) |
-| [`AGENT_README.md`](https://github.com/pratik227/nostr-core/blob/main/AGENT_README.md) | Full integration guide — every method with request/response examples, error handling, agent tips |
-| [`integration-prompt.md`](https://github.com/pratik227/nostr-core/blob/main/docs/llm/integration-prompt.md) | Copy-paste system prompt and code templates for wiring agents to nostr-core |
+| [`AGENT_README.md`](https://github.com/nostr-core-org/nostr-core/blob/main/AGENT_README.md) | Full integration guide — every method with request/response examples, error handling, agent tips |
+| [`integration-prompt.md`](https://github.com/nostr-core-org/nostr-core/blob/main/docs/llm/integration-prompt.md) | Copy-paste system prompt and code templates for wiring agents to nostr-core |
 
 ## Quick Copy
 
@@ -34,8 +34,8 @@ The `llms.txt` file provides a structured index of all documentation pages:
 |------|------|-------------|
 | [`/llms.txt`](/llms.txt) | ~1 KB | Structured index with page descriptions — point your agent here first |
 | [`/llms-full.txt`](/llms-full.txt) | ~25 KB | Complete documentation in a single file — all guides + full API reference |
-| [`AGENT_README.md`](https://github.com/pratik227/nostr-core/blob/main/AGENT_README.md) | ~8 KB | Agent integration guide with examples and error tables |
-| [`integration-prompt.md`](https://github.com/pratik227/nostr-core/blob/main/docs/llm/integration-prompt.md) | ~6 KB | System prompt, code templates, MCP config, validation checklist |
+| [`AGENT_README.md`](https://github.com/nostr-core-org/nostr-core/blob/main/AGENT_README.md) | ~8 KB | Agent integration guide with examples and error tables |
+| [`integration-prompt.md`](https://github.com/nostr-core-org/nostr-core/blob/main/docs/llm/integration-prompt.md) | ~6 KB | System prompt, code templates, MCP config, validation checklist |
 
 ## Usage with AI Tools
 
