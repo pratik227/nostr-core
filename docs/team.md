@@ -6,7 +6,7 @@ title: Team
 
 # The Team
 
-The people behind **nostr-core** — building open, vendor-neutral tooling for the Nostr ecosystem.
+The people behind **nostr-core** - building open, vendor-neutral tooling for the Nostr ecosystem.
 
 <div class="team-grid">
   <TeamCard

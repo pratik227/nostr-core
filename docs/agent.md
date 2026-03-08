@@ -12,8 +12,8 @@ Ready-made files for AI agents to discover, understand, and integrate with nostr
 
 | File | Description |
 |------|-------------|
-| [`/llms.txt`](/llms.txt) | Discovery index — structured overview of all docs, following the [llms.txt standard](https://llmstxt.org/) |
-| [`AGENT_README.md`](https://github.com/nostr-core-org/nostr-core/blob/main/AGENT_README.md) | Full integration guide — every method with request/response examples, error handling, agent tips |
+| [`/llms.txt`](/llms.txt) | Discovery index - structured overview of all docs, following the [llms.txt standard](https://llmstxt.org/) |
+| [`AGENT_README.md`](https://github.com/nostr-core-org/nostr-core/blob/main/AGENT_README.md) | Full integration guide - every method with request/response examples, error handling, agent tips |
 | [`integration-prompt.md`](https://github.com/nostr-core-org/nostr-core/blob/main/docs/llm/integration-prompt.md) | Copy-paste system prompt and code templates for wiring agents to nostr-core |
 
 ## Quick Copy
@@ -32,8 +32,8 @@ The `llms.txt` file provides a structured index of all documentation pages:
 
 | File | Size | Description |
 |------|------|-------------|
-| [`/llms.txt`](/llms.txt) | ~1 KB | Structured index with page descriptions — point your agent here first |
-| [`/llms-full.txt`](/llms-full.txt) | ~25 KB | Complete documentation in a single file — all guides + full API reference |
+| [`/llms.txt`](/llms.txt) | ~1 KB | Structured index with page descriptions - point your agent here first |
+| [`/llms-full.txt`](/llms-full.txt) | ~25 KB | Complete documentation in a single file - all guides + full API reference |
 | [`AGENT_README.md`](https://github.com/nostr-core-org/nostr-core/blob/main/AGENT_README.md) | ~8 KB | Agent integration guide with examples and error tables |
 | [`integration-prompt.md`](https://github.com/nostr-core-org/nostr-core/blob/main/docs/llm/integration-prompt.md) | ~6 KB | System prompt, code templates, MCP config, validation checklist |
 
@@ -61,3 +61,36 @@ The `llms.txt` file links to all documentation pages so agents can fetch only wh
 curl -s https://your-docs-site.com/llms-full.txt | pbcopy
 # Full docs are now in your clipboard
 ```
+
+## Signer Abstraction (NIP-07 & NIP-46)
+
+nostr-core provides a unified `Signer` interface for delegating event signing to different backends:
+
+| Signer | Description |
+|--------|-------------|
+| `createSecretKeySigner(sk)` | Sign with a raw secret key |
+| `Nip07Signer` | Delegate to a browser extension (`window.nostr`) |
+| `NostrConnect` | Remote signing via NIP-46 (`nostrconnect://` URI) |
+
+All three implement the same `Signer` interface (`getPublicKey()`, `signEvent()`, optional `nip04`, optional `getRelays()`), making them interchangeable in application code.
+
+See the API docs for [Signer](/api/signer), [NIP-07](/api/nip07), and [NIP-46](/api/nip46).
+
+## Claude Code Plugin
+
+nostr-core is also available as a **Claude Code plugin** with 4 agent skills for building Lightning-enabled applications:
+
+| Skill | Command | Description |
+|-------|---------|-------------|
+| NWC Integration | `/nwc-integrate` | Set up nostr-core and connect to any NWC wallet |
+| Lightning Payments | `/lightning-pay` | Pay invoices, Lightning Addresses, fiat, and keysend |
+| Wallet Monitor | `/wallet-monitor` | Real-time notifications, transaction history, analytics |
+| Nostr Primitives | `/nostr-primitives` | Low-level keys, events, relays, encryption, encoding |
+
+### Install the plugin
+
+```
+/plugin install nostr-core-org/nostr-core
+```
+
+See the [Skills documentation](/skills) for full details and usage examples.

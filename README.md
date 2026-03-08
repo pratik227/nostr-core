@@ -25,6 +25,7 @@ nwc.close()
 - **Full NIP-47 coverage** - `pay_invoice`, `get_balance`, `make_invoice`, `list_transactions`, `pay_keysend`, `sign_message`, and more
 - **Auto-encryption** - detects NIP-04 or NIP-44 support and handles it transparently
 - **Typed errors** - specific error classes for timeouts, connection failures, wallet rejections, and decryption issues
+- **Signer abstraction** - unified `Signer` interface for secret keys, browser extensions (NIP-07), and remote signers (NIP-46)
 - **Zero framework deps** - built on audited [noble](https://paulmillr.com/noble/) cryptography libraries only
 - **ESM-only** - tree-shakeable, modern JavaScript
 
@@ -177,6 +178,9 @@ import {
   // Key management
   generateSecretKey, getPublicKey,
 
+  // Signer abstraction
+  createSecretKeySigner, Nip07Signer, NostrConnect,
+
   // Events
   finalizeEvent, verifyEvent, getEventHash, serializeEvent, validateEvent,
 
@@ -188,6 +192,9 @@ import {
 
   // Bech32 encoding
   nip19,
+
+  // NIP-07 & NIP-46
+  nip07, nip46,
 
   // Filters
   matchFilter, matchFilters,
@@ -216,6 +223,21 @@ If you've used `@getalby/sdk` before, here's why `nostr-core` is a better fit fo
 **Use `@getalby/sdk`** if you need Alby OAuth or WebLN compatibility. **Use `nostr-core`** for everything else - including Lightning Address payments and fiat currency conversion, which are now supported natively.
 
 See the full [comparison guide](./docs/guide/comparison.md) for details.
+
+## Agent Skills (Claude Code Plugin)
+
+nostr-core ships as a [Claude Code plugin](https://code.claude.com/docs/en/plugins) with 4 skills for AI agents building Lightning-enabled apps:
+
+| Skill | Description |
+|-------|-------------|
+| `/nwc-integrate` | Set up nostr-core and connect to any NWC wallet |
+| `/lightning-pay` | Pay invoices, Lightning Addresses, fiat, and keysend |
+| `/wallet-monitor` | Real-time notifications, transaction history, analytics |
+| `/nostr-primitives` | Low-level keys, events, relays, encryption, encoding |
+
+Install: `/plugin install nostr-core-org/nostr-core`
+
+See the [Skills documentation](./docs/skills.md) and [Agent README](./AGENT_README.md) for details.
 
 ## Dependencies
 

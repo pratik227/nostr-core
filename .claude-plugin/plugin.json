@@ -1,0 +1,24 @@
+{
+  "name": "nostr-core",
+  "description": "Claude Code skills for building Lightning-enabled applications with nostr-core. Covers NWC wallet integration, Lightning payments, real-time wallet monitoring, Nostr protocol primitives, and signing via secret keys, browser extensions (NIP-07), and remote signers (NIP-46).",
+  "version": "0.2.0",
+  "author": {
+    "name": "nostr-core-org",
+    "email": "pratikpatelpp802@gmail.com"
+  },
+  "homepage": "https://github.com/nostr-core-org/nostr-core",
+  "repository": "https://github.com/nostr-core-org/nostr-core",
+  "license": "MIT",
+  "keywords": [
+    "nostr",
+    "nwc",
+    "lightning",
+    "bitcoin",
+    "wallet-connect",
+    "nip-47",
+    "nip-07",
+    "nip-46",
+    "signer",
+    "payments"
+  ]
+}
