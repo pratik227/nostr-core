@@ -1,6 +1,6 @@
 # nostr-core - Agent Integration Guide
 
-Dead-simple, vendor-neutral NWC (Nostr Wallet Connect) client for JavaScript and TypeScript. Control any Lightning wallet programmatically via the NIP-47 protocol.
+Dead-simple, vendor-neutral Nostr client for JavaScript and TypeScript. Control any Lightning wallet via NIP-47, sign events with browser extensions (NIP-07), delegate signing to remote signers (NIP-46), and send private encrypted messages (NIP-17/NIP-59).
 
 **Package:** `nostr-core` (npm)
 **Runtime:** Node.js 18+, Deno, Bun, Cloudflare Workers
@@ -439,9 +439,117 @@ Use these when your agent needs human input:
 
 ---
 
+## Signer Abstraction (NIP-07 & NIP-46)
+
+nostr-core provides a unified `Signer` interface for event signing. All signers share the same API:
+
+```javascript
+// getPublicKey() and signEvent() work the same way regardless of backend
+const pubkey = await signer.getPublicKey()
+const signed = await signer.signEvent({
+  kind: 1,
+  created_at: Math.floor(Date.now() / 1000),
+  tags: [],
+  content: 'Hello Nostr!',
+})
+```
+
+### Secret Key Signer
+
+```javascript
+import { generateSecretKey, createSecretKeySigner } from 'nostr-core'
+
+const sk = generateSecretKey()
+const signer = createSecretKeySigner(sk)
+```
+
+### Browser Extension Signer (NIP-07)
+
+Wraps `window.nostr` from extensions like nos2x or Alby:
+
+```javascript
+import { Nip07Signer } from 'nostr-core'
+
+const signer = new Nip07Signer() // throws Nip07NotAvailableError if no extension
+```
+
+### Remote Signer (NIP-46 / Nostr Connect)
+
+Delegates signing to a remote signer (e.g. nsecBunker) over a relay:
+
+```javascript
+import { NostrConnect } from 'nostr-core'
+
+const signer = new NostrConnect('nostrconnect://<pubkey>?relay=wss://relay.example.com')
+await signer.connect()
+
+// Use signer...
+
+await signer.disconnect()
+```
+
+### Signer Error Classes
+
+| Error Class | Code | Meaning |
+|-------------|------|---------|
+| `Nip07Error` | `NIP07_ERROR` | NIP-07 extension operation failed |
+| `Nip07NotAvailableError` | `NIP07_NOT_AVAILABLE` | `window.nostr` is undefined |
+| `Nip46Error` | `NIP46_ERROR` | NIP-46 operation failed |
+| `Nip46TimeoutError` | `NIP46_TIMEOUT` | Remote signer didn't respond in time |
+| `Nip46ConnectionError` | `NIP46_CONNECTION_ERROR` | Failed to connect or handshake |
+| `Nip46RemoteError` | `NIP46_REMOTE_ERROR` | Remote signer returned an error |
+
+---
+
+## Gift Wrapping & Private DMs (NIP-59 & NIP-17)
+
+nostr-core supports multi-layer event encryption for metadata protection and private direct messages.
+
+### Gift Wrap (NIP-59)
+
+Wraps any event in three layers: **rumor** (unsigned content) → **seal** (kind 13) → **gift wrap** (kind 1059). Hides sender identity from relays and observers.
+
+```javascript
+import { nip59, generateSecretKey, getPublicKey } from 'nostr-core'
+
+const senderSk = generateSecretKey()
+const senderPk = getPublicKey(senderSk)
+
+// Wrap
+const rumor = nip59.createRumor({ kind: 1, tags: [], content: 'Secret', created_at: Math.floor(Date.now() / 1000) }, senderPk)
+const seal = nip59.createSeal(rumor, senderSk, recipientPubkey)
+const wrap = nip59.createWrap(seal, recipientPubkey)
+// wrap.pubkey is ephemeral — real sender is hidden
+
+// Unwrap
+const unwrapped = nip59.unwrap(wrap, recipientSecretKey)
+// unwrapped.pubkey = real sender, unwrapped.content = decrypted content
+```
+
+### Private Direct Messages (NIP-17)
+
+End-to-end encrypted DMs with sender anonymity, built on NIP-59:
+
+```javascript
+import { nip17 } from 'nostr-core'
+
+// Send
+const wrap = nip17.wrapDirectMessage('Hello!', senderSecretKey, recipientPubkey)
+
+// Receive
+const dm = nip17.unwrapDirectMessage(wrap, recipientSecretKey)
+// dm.sender, dm.content, dm.tags, dm.created_at, dm.id
+```
+
+---
+
 ## Links
 
 - **npm:** https://www.npmjs.com/package/nostr-core
 - **Source:** https://github.com/nostr-core-org/nostr-core
 - **NIP-47 Spec:** https://github.com/nostr-protocol/nips/blob/master/47.md
+- **NIP-07 Spec:** https://github.com/nostr-protocol/nips/blob/master/07.md
+- **NIP-46 Spec:** https://github.com/nostr-protocol/nips/blob/master/46.md
+- **NIP-59 Spec:** https://github.com/nostr-protocol/nips/blob/master/59.md
+- **NIP-17 Spec:** https://github.com/nostr-protocol/nips/blob/master/17.md
 - **License:** MIT

@@ -61,6 +61,30 @@ export type { Filter } from './filter.js'
 export * as nip04 from './nip04.js'
 export * as nip44 from './nip44.js'
 export * as nip19 from './nip19.js'
+export * as nip07 from './nip07.js'
+export * as nip46 from './nip46.js'
+export * as nip59 from './nip59.js'
+export * as nip17 from './nip17.js'
+
+// Signer
+export type { Signer, RelayMap } from './signer.js'
+export { createSecretKeySigner } from './signer.js'
+
+// NIP-07
+export { Nip07Signer, getExtension, Nip07Error, Nip07NotAvailableError } from './nip07.js'
+export type { Nip07Extension } from './nip07.js'
+
+// NIP-46
+export { NostrConnect, parseConnectionURI, Nip46Error, Nip46TimeoutError, Nip46ConnectionError, Nip46RemoteError } from './nip46.js'
+export type { Nip46ConnectionOptions, Nip46Method } from './nip46.js'
+
+// NIP-59
+export { createRumor, createSeal, createWrap, unwrap } from './nip59.js'
+export type { Rumor } from './nip59.js'
+
+// NIP-17
+export { wrapDirectMessage, unwrapDirectMessage } from './nip17.js'
+export type { DirectMessage } from './nip17.js'
 
 // Networking
 export { Relay, Subscription } from './relay.js'

@@ -61,13 +61,45 @@ You are integrating with Lightning wallets using nostr-core, a JavaScript/TypeSc
     Handler receives: { notification_type, notification: Transaction }
 
 12. CLOSE
-    nwc.close() — always call when done
+    nwc.close() - always call when done
+
+## Signer Abstraction (NIP-07 & NIP-46)
+
+nostr-core provides a unified Signer interface for event signing:
+
+1. SECRET KEY SIGNER
+   import { createSecretKeySigner, generateSecretKey } from 'nostr-core'
+   const signer = createSecretKeySigner(generateSecretKey())
+
+2. BROWSER EXTENSION (NIP-07)
+   import { Nip07Signer } from 'nostr-core'
+   const signer = new Nip07Signer() // wraps window.nostr
+
+3. REMOTE SIGNER (NIP-46)
+   import { NostrConnect } from 'nostr-core'
+   const signer = new NostrConnect('nostrconnect://<pubkey>?relay=wss://...')
+   await signer.connect()
+
+All three: signer.getPublicKey(), signer.signEvent(template), signer.nip04?.encrypt/decrypt
+
+4. GIFT WRAP (NIP-59)
+   import { nip59 } from 'nostr-core'
+   const rumor = nip59.createRumor(eventTemplate, senderPubkey)
+   const seal = nip59.createSeal(rumor, senderSecretKey, recipientPubkey)
+   const wrap = nip59.createWrap(seal, recipientPubkey)
+   const unwrapped = nip59.unwrap(wrap, recipientSecretKey)
+
+5. PRIVATE DMs (NIP-17)
+   import { nip17 } from 'nostr-core'
+   const wrap = nip17.wrapDirectMessage('Hello!', senderSk, recipientPk)
+   const dm = nip17.unwrapDirectMessage(wrap, recipientSk)
+   // dm.sender, dm.content, dm.tags, dm.created_at, dm.id
 
 ## Rules
 - All amounts are in millisatoshis (1 sat = 1000 msats)
 - Always call connect() before operations and close() when done
 - Check getInfo().methods to verify wallet supports an operation before calling it
-- Connection strings are secrets — never log or display them
+- Connection strings are secrets - never log or display them
 - Use getBudget() to check spending limits before large payments
 - Errors have a .code property: INSUFFICIENT_BALANCE, REPLY_TIMEOUT, CONNECTION_ERROR, etc.
 - Default reply timeout is 60s. Set nwc.replyTimeout for custom values

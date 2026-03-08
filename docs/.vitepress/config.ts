@@ -63,6 +63,7 @@ export default defineConfig({
             collapsed: true,
             items: [
               { text: 'NWC', link: '/api/nwc' },
+              { text: 'NostrConnect', link: '/api/nip46' },
             ],
           },
           {
@@ -71,6 +72,7 @@ export default defineConfig({
             items: [
               { text: 'Relay', link: '/api/relay' },
               { text: 'RelayPool', link: '/api/pool' },
+              { text: 'Signer', link: '/api/signer' },
               { text: 'Filter', link: '/api/filter' },
               { text: 'Event', link: '/api/event' },
               { text: 'Crypto', link: '/api/crypto' },
@@ -81,8 +83,12 @@ export default defineConfig({
             collapsed: true,
             items: [
               { text: 'NIP-04', link: '/api/nip04' },
+              { text: 'NIP-07', link: '/api/nip07' },
               { text: 'NIP-44', link: '/api/nip44' },
               { text: 'NIP-19', link: '/api/nip19' },
+              { text: 'NIP-46', link: '/api/nip46' },
+              { text: 'NIP-59', link: '/api/nip59' },
+              { text: 'NIP-17', link: '/api/nip17' },
             ],
           },
           {
