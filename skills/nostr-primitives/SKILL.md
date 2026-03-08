@@ -1,8 +1,8 @@
 ---
 name: nostr-primitives
-description: Use nostr-core's low-level Nostr protocol primitives to build custom applications. Covers key generation, event signing and verification, relay connections, NIP-04 and NIP-44 encryption, bech32 encoding, event filtering, unified Signer interface, browser extension signing (NIP-07), and remote signing via Nostr Connect (NIP-46). Use for custom Nostr app development beyond standard wallet operations.
+description: Use nostr-core's low-level Nostr protocol primitives to build custom applications. Covers key generation, event signing and verification, relay connections, NIP-04 and NIP-44 encryption, NIP-59 gift wrapping, NIP-17 private direct messages, bech32 encoding, event filtering, unified Signer interface, browser extension signing (NIP-07), and remote signing via Nostr Connect (NIP-46). Use for custom Nostr app development beyond standard wallet operations.
 user-invocable: true
-argument-hint: "[keys, events, relays, encryption, encoding, signer, nip07, or nip46]"
+argument-hint: "[keys, events, relays, encryption, giftwrap, dm, encoding, signer, nip07, or nip46]"
 ---
 
 # Nostr Protocol Primitives with nostr-core
@@ -209,6 +209,91 @@ const plaintext = await nip04.decrypt(mySecretKey, theirPubkey, ciphertext)
 **When to use which:**
 - **NIP-44** - Use for all new applications. Stronger security, no padding oracle attacks.
 - **NIP-04** - Only when communicating with services that don't support NIP-44.
+
+---
+
+## Gift Wrapping (NIP-59)
+
+Multi-layer event encryption that hides sender identity and metadata. Three layers: **rumor** (unsigned content) → **seal** (kind 13, encrypted with sender key) → **gift wrap** (kind 1059, encrypted with ephemeral key).
+
+```typescript
+import { nip59, generateSecretKey, getPublicKey } from 'nostr-core'
+
+const senderSk = generateSecretKey()
+const senderPk = getPublicKey(senderSk)
+const recipientPk = '...' // recipient's public key
+
+// Create a rumor (unsigned event)
+const rumor = nip59.createRumor(
+  {
+    kind: 1,
+    tags: [],
+    content: 'Secret message',
+    created_at: Math.floor(Date.now() / 1000),
+  },
+  senderPk,
+)
+
+// Seal it (NIP-44 encrypt with sender key, kind 13)
+const seal = nip59.createSeal(rumor, senderSk, recipientPk)
+
+// Gift wrap it (NIP-44 encrypt with ephemeral key, kind 1059)
+const wrap = nip59.createWrap(seal, recipientPk)
+// wrap.pubkey is ephemeral — sender identity is hidden
+
+// Recipient unwraps
+const unwrapped = nip59.unwrap(wrap, recipientSk)
+console.log(unwrapped.pubkey)  // real sender pubkey
+console.log(unwrapped.content) // decrypted content
+```
+
+**Functions:**
+| Function | Description |
+|----------|-------------|
+| `createRumor(event, pubkey)` | Create unsigned event with computed id |
+| `createSeal(rumor, senderSk, recipientPk)` | Encrypt rumor into kind 13 seal |
+| `createWrap(seal, recipientPk)` | Wrap seal in kind 1059 with ephemeral key |
+| `unwrap(wrap, recipientSk)` | Decrypt wrap → verify seal → decrypt seal → validate pubkeys |
+
+---
+
+## Private Direct Messages (NIP-17)
+
+End-to-end encrypted DMs with sender anonymity. Built on NIP-59 gift wrap — creates kind 14 rumors wrapped in seal + gift wrap.
+
+```typescript
+import { nip17, generateSecretKey, getPublicKey } from 'nostr-core'
+
+const aliceSk = generateSecretKey()
+const bobSk = generateSecretKey()
+const bobPk = getPublicKey(bobSk)
+
+// Alice sends a private DM to Bob
+const wrap = nip17.wrapDirectMessage('Hello Bob!', aliceSk, bobPk)
+// wrap is a kind 1059 event — publish to Bob's preferred relays
+
+// Bob unwraps the DM
+const dm = nip17.unwrapDirectMessage(wrap, bobSk)
+console.log(dm.sender)  // Alice's real pubkey
+console.log(dm.content) // "Hello Bob!"
+```
+
+**Thread replies** — include tags referencing previous messages:
+
+```typescript
+const reply = nip17.wrapDirectMessage(
+  'Got it!',
+  aliceSk,
+  bobPk,
+  [['e', previousMessageId]],
+)
+```
+
+**Functions:**
+| Function | Description |
+|----------|-------------|
+| `wrapDirectMessage(content, senderSk, recipientPk, tags?)` | Create gift-wrapped kind 14 DM |
+| `unwrapDirectMessage(wrap, recipientSk)` | Unwrap and return `{ sender, content, tags, created_at, id }` |
 
 ---
 

@@ -98,6 +98,8 @@ Low-level Nostr primitives for custom application development. Covers:
 - Remote signing (NIP-46) via Nostr Connect
 - Relay connections (single + pool)
 - NIP-04 and NIP-44 encryption
+- NIP-59 gift wrapping (multi-layer metadata protection)
+- NIP-17 private direct messages (end-to-end encrypted DMs)
 - NIP-19 bech32 encoding/decoding
 - Event filtering and matching
 - NWC protocol internals
@@ -105,6 +107,8 @@ Low-level Nostr primitives for custom application development. Covers:
 ```
 /nostr-primitives keys
 /nostr-primitives encryption
+/nostr-primitives giftwrap
+/nostr-primitives dm
 /nostr-primitives relays
 /nostr-primitives signer
 /nostr-primitives nip07

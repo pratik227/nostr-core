@@ -82,6 +82,19 @@ nostr-core provides a unified Signer interface for event signing:
 
 All three: signer.getPublicKey(), signer.signEvent(template), signer.nip04?.encrypt/decrypt
 
+4. GIFT WRAP (NIP-59)
+   import { nip59 } from 'nostr-core'
+   const rumor = nip59.createRumor(eventTemplate, senderPubkey)
+   const seal = nip59.createSeal(rumor, senderSecretKey, recipientPubkey)
+   const wrap = nip59.createWrap(seal, recipientPubkey)
+   const unwrapped = nip59.unwrap(wrap, recipientSecretKey)
+
+5. PRIVATE DMs (NIP-17)
+   import { nip17 } from 'nostr-core'
+   const wrap = nip17.wrapDirectMessage('Hello!', senderSk, recipientPk)
+   const dm = nip17.unwrapDirectMessage(wrap, recipientSk)
+   // dm.sender, dm.content, dm.tags, dm.created_at, dm.id
+
 ## Rules
 - All amounts are in millisatoshis (1 sat = 1000 msats)
 - Always call connect() before operations and close() when done

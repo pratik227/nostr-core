@@ -76,6 +76,17 @@ All three implement the same `Signer` interface (`getPublicKey()`, `signEvent()`
 
 See the API docs for [Signer](/api/signer), [NIP-07](/api/nip07), and [NIP-46](/api/nip46).
 
+## Private Messaging (NIP-59 & NIP-17)
+
+nostr-core supports multi-layer encrypted messaging:
+
+| Module | Description |
+|--------|-------------|
+| `nip59` | Gift Wrap — wraps events in 3 encryption layers (rumor → seal → gift wrap) to hide sender identity |
+| `nip17` | Private DMs — end-to-end encrypted direct messages with sender anonymity, built on NIP-59 |
+
+See the API docs for [NIP-59](/api/nip59) and [NIP-17](/api/nip17).
+
 ## Claude Code Plugin
 
 nostr-core is also available as a **Claude Code plugin** with 4 agent skills for building Lightning-enabled applications:

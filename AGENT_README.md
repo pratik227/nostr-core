@@ -1,6 +1,6 @@
 # nostr-core - Agent Integration Guide
 
-Dead-simple, vendor-neutral Nostr client for JavaScript and TypeScript. Control any Lightning wallet via NIP-47, sign events with browser extensions (NIP-07), or delegate signing to remote signers (NIP-46).
+Dead-simple, vendor-neutral Nostr client for JavaScript and TypeScript. Control any Lightning wallet via NIP-47, sign events with browser extensions (NIP-07), delegate signing to remote signers (NIP-46), and send private encrypted messages (NIP-17/NIP-59).
 
 **Package:** `nostr-core` (npm)
 **Runtime:** Node.js 18+, Deno, Bun, Cloudflare Workers
@@ -501,6 +501,48 @@ await signer.disconnect()
 
 ---
 
+## Gift Wrapping & Private DMs (NIP-59 & NIP-17)
+
+nostr-core supports multi-layer event encryption for metadata protection and private direct messages.
+
+### Gift Wrap (NIP-59)
+
+Wraps any event in three layers: **rumor** (unsigned content) → **seal** (kind 13) → **gift wrap** (kind 1059). Hides sender identity from relays and observers.
+
+```javascript
+import { nip59, generateSecretKey, getPublicKey } from 'nostr-core'
+
+const senderSk = generateSecretKey()
+const senderPk = getPublicKey(senderSk)
+
+// Wrap
+const rumor = nip59.createRumor({ kind: 1, tags: [], content: 'Secret', created_at: Math.floor(Date.now() / 1000) }, senderPk)
+const seal = nip59.createSeal(rumor, senderSk, recipientPubkey)
+const wrap = nip59.createWrap(seal, recipientPubkey)
+// wrap.pubkey is ephemeral — real sender is hidden
+
+// Unwrap
+const unwrapped = nip59.unwrap(wrap, recipientSecretKey)
+// unwrapped.pubkey = real sender, unwrapped.content = decrypted content
+```
+
+### Private Direct Messages (NIP-17)
+
+End-to-end encrypted DMs with sender anonymity, built on NIP-59:
+
+```javascript
+import { nip17 } from 'nostr-core'
+
+// Send
+const wrap = nip17.wrapDirectMessage('Hello!', senderSecretKey, recipientPubkey)
+
+// Receive
+const dm = nip17.unwrapDirectMessage(wrap, recipientSecretKey)
+// dm.sender, dm.content, dm.tags, dm.created_at, dm.id
+```
+
+---
+
 ## Links
 
 - **npm:** https://www.npmjs.com/package/nostr-core
@@ -508,4 +550,6 @@ await signer.disconnect()
 - **NIP-47 Spec:** https://github.com/nostr-protocol/nips/blob/master/47.md
 - **NIP-07 Spec:** https://github.com/nostr-protocol/nips/blob/master/07.md
 - **NIP-46 Spec:** https://github.com/nostr-protocol/nips/blob/master/46.md
+- **NIP-59 Spec:** https://github.com/nostr-protocol/nips/blob/master/59.md
+- **NIP-17 Spec:** https://github.com/nostr-protocol/nips/blob/master/17.md
 - **License:** MIT
