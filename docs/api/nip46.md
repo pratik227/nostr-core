@@ -1,28 +1,36 @@
 # NIP-46
 
-Nostr Connect - remote signing over relays. Delegates signing to a remote signer (e.g. nsecBunker) via NIP-04 encrypted kind `24133` events.
+Nostr Connect - remote signing over relays. Delegates signing to a remote signer (e.g. nsecBunker, Amber, LNbits) via NIP-04 encrypted kind `24133` events.
 
 ## NostrConnect
 
 ### Constructor
 
-Accepts a `nostrconnect://` URI string or a `Nip46ConnectionOptions` object:
+Accepts a `nostrconnect://` or `bunker://` URI string, or a `Nip46ConnectionOptions` object:
 
 ```ts
 import { NostrConnect } from 'nostr-core'
 
-// From URI
+// From bunker:// URI (with multiple relays, secret, and app metadata)
+const signer = new NostrConnect(
+  'bunker://<remote-pubkey>?relay=wss://relay1.example.com&relay=wss://relay2.example.com&secret=mytoken&name=MyApp&url=https://myapp.com'
+)
+
+// From nostrconnect:// URI
 const signer = new NostrConnect('nostrconnect://<remote-pubkey>?relay=wss://relay.example.com')
 
 // From options
 const signer = new NostrConnect({
   remotePubkey: '<hex-pubkey>',
-  relayUrl: 'wss://relay.example.com',
-  secretKey: mySecretKey, // optional - random key generated if omitted
+  relayUrls: ['wss://relay1.example.com', 'wss://relay2.example.com'],
+  secretKey: mySecretKey,  // optional - random key generated if omitted
+  secret: 'mytoken',      // optional - required by Amber/LNbits signers
 })
 ```
 
 ### Connection
+
+`connect()` tries each relay in order until one succeeds (fallback behavior):
 
 ```ts
 await signer.connect()     // Connect to relay + NIP-46 handshake
@@ -50,10 +58,17 @@ const encrypted = await signer.nip04.encrypt(recipientPubkey, 'secret message')
 const decrypted = await signer.nip04.decrypt(senderPubkey, encrypted)
 ```
 
+### NIP-44 Encryption
+
+```ts
+const encrypted = await signer.nip44.encrypt(recipientPubkey, 'secret message')
+const decrypted = await signer.nip44.decrypt(senderPubkey, encrypted)
+```
+
 ### Other Methods
 
 ```ts
-const methods = await signer.describe()  // ['connect', 'sign_event', ...]
+const methods = await signer.describe()  // ['connect', 'sign_event', 'nip44_encrypt', ...]
 const relays = await signer.getRelays()  // RelayMap
 ```
 
@@ -65,12 +80,18 @@ signer.timeout = 30000  // RPC timeout in ms (default: 60s)
 
 ## parseConnectionURI
 
-Parses a `nostrconnect://` URI into its components:
+Parses a `nostrconnect://` or `bunker://` URI into its components. Supports multiple `relay` params, optional `secret`, and optional app metadata (`name`, `url`, `image`):
 
 ```ts
 import { parseConnectionURI } from 'nostr-core'
 
-const { remotePubkey, relayUrl } = parseConnectionURI('nostrconnect://<pubkey>?relay=wss://...')
+const opts = parseConnectionURI(
+  'bunker://<pubkey>?relay=wss://r1.example.com&relay=wss://r2.example.com&secret=tok&name=MyApp'
+)
+// opts.remotePubkey  - hex pubkey
+// opts.relayUrls     - ['wss://r1.example.com', 'wss://r2.example.com']
+// opts.secret        - 'tok'
+// opts.appMetadata   - { name: 'MyApp' }
 ```
 
 ## Nip46ConnectionOptions
@@ -78,8 +99,21 @@ const { remotePubkey, relayUrl } = parseConnectionURI('nostrconnect://<pubkey>?r
 ```ts
 type Nip46ConnectionOptions = {
   remotePubkey: string
-  relayUrl: string
+  relayUrls: string[]
   secretKey?: Uint8Array
+  secret?: string
+}
+```
+
+## Nip46AppMetadata
+
+Extracted from URI query params when present:
+
+```ts
+type Nip46AppMetadata = {
+  name?: string
+  url?: string
+  image?: string
 }
 ```
 
@@ -94,6 +128,8 @@ type Nip46Method =
   | 'sign_event'
   | 'nip04_encrypt'
   | 'nip04_decrypt'
+  | 'nip44_encrypt'
+  | 'nip44_decrypt'
   | 'get_relays'
 ```
 

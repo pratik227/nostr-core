@@ -12,6 +12,10 @@ interface Signer {
     encrypt(pubkey: string, plaintext: string): Promise<string>
     decrypt(pubkey: string, ciphertext: string): Promise<string>
   }
+  nip44?: {
+    encrypt(pubkey: string, plaintext: string): Promise<string>
+    decrypt(pubkey: string, ciphertext: string): Promise<string>
+  }
   getRelays?(): Promise<RelayMap>
 }
 ```
@@ -24,7 +28,7 @@ type RelayMap = Record<string, { read: boolean; write: boolean }>
 
 ## createSecretKeySigner
 
-Creates a `Signer` from a raw secret key. Wraps `finalizeEvent()` and `nip04` internally.
+Creates a `Signer` from a raw secret key. Wraps `finalizeEvent()`, `nip04`, and `nip44` internally.
 
 ```ts
 import { generateSecretKey, createSecretKeySigner } from 'nostr-core'
@@ -39,6 +43,10 @@ const signed = await signer.signEvent({
   tags: [],
   content: 'Hello Nostr!',
 })
+
+// NIP-44 encryption
+const encrypted = await signer.nip44.encrypt(recipientPubkey, 'secret')
+const decrypted = await signer.nip44.decrypt(senderPubkey, encrypted)
 ```
 
 ## Usage with Different Backends
@@ -54,7 +62,10 @@ const skSigner: Signer = createSecretKeySigner(secretKey)
 const extSigner: Signer = new Nip07Signer()
 
 // Remote signer (NIP-46)
-const remoteSigner: Signer = new NostrConnect('nostrconnect://...')
+const remoteSigner: Signer = new NostrConnect({
+  remotePubkey: '<hex-pubkey>',
+  relayUrls: ['wss://relay1.example.com', 'wss://relay2.example.com'],
+})
 await remoteSigner.connect()
 
 // All three work the same way

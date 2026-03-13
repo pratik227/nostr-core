@@ -1,6 +1,6 @@
 {
   "name": "nostr-core",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Dead-simple, vendor-neutral NWC (Nostr Wallet Connect) client",
   "type": "module",
   "main": "./dist/index.js",

@@ -52,12 +52,21 @@ export type Nip46Method =
   | 'sign_event'
   | 'nip04_encrypt'
   | 'nip04_decrypt'
+  | 'nip44_encrypt'
+  | 'nip44_decrypt'
   | 'get_relays'
 
 export type Nip46ConnectionOptions = {
   remotePubkey: string
-  relayUrl: string
+  relayUrls: string[]
   secretKey?: Uint8Array
+  secret?: string
+}
+
+export type Nip46AppMetadata = {
+  name?: string
+  url?: string
+  image?: string
 }
 
 type PendingRequest = {
@@ -68,30 +77,53 @@ type PendingRequest = {
 
 // URI parsing
 
-export function parseConnectionURI(uri: string): Nip46ConnectionOptions {
-  const normalized = uri.replace('nostrconnect://', 'http://')
+export function parseConnectionURI(uri: string): Nip46ConnectionOptions & { appMetadata?: Nip46AppMetadata } {
+  // Accept both nostrconnect:// and bunker:// prefixes
+  let normalized: string
+  if (uri.startsWith('nostrconnect://')) {
+    normalized = uri.replace('nostrconnect://', 'http://')
+  } else if (uri.startsWith('bunker://')) {
+    normalized = uri.replace('bunker://', 'http://')
+  } else {
+    throw new Nip46Error('Invalid connection URI: must start with nostrconnect:// or bunker://', 'INVALID_URI')
+  }
+
   const url = new URL(normalized)
   const remotePubkey = url.host || url.pathname.replace('//', '')
-  const relayUrl = url.searchParams.get('relay')
+
+  // Collect all relay params (supports multiple ?relay= params)
+  const relayUrls = url.searchParams.getAll('relay')
 
   if (!remotePubkey) {
-    throw new Nip46Error('Invalid nostrconnect URI: missing remote pubkey', 'INVALID_URI')
+    throw new Nip46Error('Invalid connection URI: missing remote pubkey', 'INVALID_URI')
   }
-  if (!relayUrl) {
-    throw new Nip46Error('Invalid nostrconnect URI: missing relay parameter', 'INVALID_URI')
+  if (relayUrls.length === 0) {
+    throw new Nip46Error('Invalid connection URI: missing relay parameter', 'INVALID_URI')
   }
 
-  return { remotePubkey, relayUrl }
+  // Extract optional secret
+  const secret = url.searchParams.get('secret') || undefined
+
+  // Extract optional app metadata
+  const name = url.searchParams.get('name') || undefined
+  const appUrl = url.searchParams.get('url') || undefined
+  const image = url.searchParams.get('image') || undefined
+
+  const appMetadata: Nip46AppMetadata | undefined =
+    name || appUrl || image ? { name, url: appUrl, image } : undefined
+
+  return { remotePubkey, relayUrls, secret, ...(appMetadata ? { appMetadata } : {}) }
 }
 
 // NostrConnect class
 
 export class NostrConnect implements Signer {
   private remotePubkey: string
-  private relayUrl: string
+  private relayUrls: string[]
   private secretKey: Uint8Array
   private publicKey: string
-  private relay: Relay
+  private relay!: Relay
+  private secret?: string
   private _connected = false
   private pendingRequests = new Map<string, PendingRequest>()
   private sub: { close: (reason?: string) => void } | undefined
@@ -104,10 +136,10 @@ export class NostrConnect implements Signer {
       : connectionOrOpts
 
     this.remotePubkey = opts.remotePubkey
-    this.relayUrl = opts.relayUrl
+    this.relayUrls = opts.relayUrls
     this.secretKey = opts.secretKey || randomBytes(32)
     this.publicKey = getPublicKey(this.secretKey)
-    this.relay = new Relay(this.relayUrl)
+    this.secret = opts.secret
   }
 
   get connected(): boolean {
@@ -115,37 +147,55 @@ export class NostrConnect implements Signer {
   }
 
   async connect(): Promise<void> {
-    try {
-      await this.relay.connect({ timeout: 5000 })
-    } catch (err) {
-      throw new Nip46ConnectionError(`Failed to connect to relay ${this.relayUrl}: ${(err as Error).message}`)
-    }
+    // Try each relay until one succeeds
+    let lastError: Error | undefined
+    for (const relayUrl of this.relayUrls) {
+      const relay = new Relay(relayUrl)
+      try {
+        await relay.connect({ timeout: 5000 })
+      } catch (err) {
+        lastError = err as Error
+        continue
+      }
 
-    // Subscribe to responses from the remote signer
-    this.sub = this.relay.subscribe(
-      [
+      this.relay = relay
+
+      // Subscribe to responses from the remote signer
+      this.sub = this.relay.subscribe(
+        [
+          {
+            kinds: [NIP46_KIND],
+            authors: [this.remotePubkey],
+            '#p': [this.publicKey],
+          } as Filter,
+        ],
         {
-          kinds: [NIP46_KIND],
-          authors: [this.remotePubkey],
-          '#p': [this.publicKey],
-        } as Filter,
-      ],
-      {
-        onevent: (event: NostrEvent) => {
-          this._handleResponse(event)
+          onevent: (event: NostrEvent) => {
+            this._handleResponse(event)
+          },
         },
-      },
-    )
+      )
 
-    // Send connect RPC
-    try {
-      await this._sendRequest('connect', [this.publicKey])
-    } catch (err) {
-      this.relay.close()
-      throw new Nip46ConnectionError(`NIP-46 connect handshake failed: ${(err as Error).message}`)
+      // Send connect RPC with optional secret
+      const params = this.secret
+        ? [this.publicKey, this.secret]
+        : [this.publicKey]
+
+      try {
+        await this._sendRequest('connect', params)
+      } catch (err) {
+        this.relay.close()
+        lastError = err as Error
+        continue
+      }
+
+      this._connected = true
+      return
     }
 
-    this._connected = true
+    throw new Nip46ConnectionError(
+      `Failed to connect to any relay: ${lastError?.message || 'no relays provided'}`,
+    )
   }
 
   async disconnect(): Promise<void> {
@@ -167,7 +217,7 @@ export class NostrConnect implements Signer {
     }
     this.sub?.close()
     this.sub = undefined
-    this.relay.close()
+    this.relay?.close()
     this._connected = false
   }
 
@@ -193,6 +243,15 @@ export class NostrConnect implements Signer {
     },
     decrypt: async (pubkey: string, ciphertext: string): Promise<string> => {
       return this._sendRequest('nip04_decrypt', [pubkey, ciphertext])
+    },
+  }
+
+  nip44 = {
+    encrypt: async (pubkey: string, plaintext: string): Promise<string> => {
+      return this._sendRequest('nip44_encrypt', [pubkey, plaintext])
+    },
+    decrypt: async (pubkey: string, ciphertext: string): Promise<string> => {
+      return this._sendRequest('nip44_decrypt', [pubkey, ciphertext])
     },
   }
 

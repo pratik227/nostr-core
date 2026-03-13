@@ -76,7 +76,7 @@ export type { Nip07Extension } from './nip07.js'
 
 // NIP-46
 export { NostrConnect, parseConnectionURI, Nip46Error, Nip46TimeoutError, Nip46ConnectionError, Nip46RemoteError } from './nip46.js'
-export type { Nip46ConnectionOptions, Nip46Method } from './nip46.js'
+export type { Nip46ConnectionOptions, Nip46Method, Nip46AppMetadata } from './nip46.js'
 
 // NIP-59
 export { createRumor, createSeal, createWrap, unwrap } from './nip59.js'

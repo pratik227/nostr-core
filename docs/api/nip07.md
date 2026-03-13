@@ -25,6 +25,13 @@ const encrypted = await signer.nip04.encrypt(recipientPubkey, 'secret message')
 const decrypted = await signer.nip04.decrypt(senderPubkey, encrypted)
 ```
 
+### NIP-44 Encryption
+
+```ts
+const encrypted = await signer.nip44.encrypt(recipientPubkey, 'secret message')
+const decrypted = await signer.nip44.decrypt(senderPubkey, encrypted)
+```
+
 ### Relay List
 
 ```ts
@@ -56,6 +63,10 @@ interface Nip07Extension {
   getPublicKey(): Promise<string>
   signEvent(event: EventTemplate): Promise<VerifiedEvent>
   nip04?: {
+    encrypt(pubkey: string, plaintext: string): Promise<string>
+    decrypt(pubkey: string, ciphertext: string): Promise<string>
+  }
+  nip44?: {
     encrypt(pubkey: string, plaintext: string): Promise<string>
     decrypt(pubkey: string, ciphertext: string): Promise<string>
   }

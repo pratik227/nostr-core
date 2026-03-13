@@ -28,6 +28,10 @@ export interface Nip07Extension {
     encrypt(pubkey: string, plaintext: string): Promise<string>
     decrypt(pubkey: string, ciphertext: string): Promise<string>
   }
+  nip44?: {
+    encrypt(pubkey: string, plaintext: string): Promise<string>
+    decrypt(pubkey: string, ciphertext: string): Promise<string>
+  }
   getRelays?(): Promise<RelayMap>
 }
 
@@ -91,6 +95,28 @@ export class Nip07Signer implements Signer {
         return await nip04.decrypt(pubkey, ciphertext)
       } catch (err) {
         throw new Nip07Error(`nip04.decrypt failed: ${(err as Error).message}`)
+      }
+    },
+  }
+
+  nip44 = {
+    encrypt: async (pubkey: string, plaintext: string): Promise<string> => {
+      const nip44 = this.ext.nip44
+      if (!nip44) throw new Nip07Error('Extension does not support NIP-44', 'NIP07_NIP44_UNSUPPORTED')
+      try {
+        return await nip44.encrypt(pubkey, plaintext)
+      } catch (err) {
+        throw new Nip07Error(`nip44.encrypt failed: ${(err as Error).message}`)
+      }
+    },
+
+    decrypt: async (pubkey: string, ciphertext: string): Promise<string> => {
+      const nip44 = this.ext.nip44
+      if (!nip44) throw new Nip07Error('Extension does not support NIP-44', 'NIP07_NIP44_UNSUPPORTED')
+      try {
+        return await nip44.decrypt(pubkey, ciphertext)
+      } catch (err) {
+        throw new Nip07Error(`nip44.decrypt failed: ${(err as Error).message}`)
       }
     },
   }
