@@ -89,7 +89,7 @@ Monitor wallet activity and analyze transaction history. Covers:
 
 ### `/nostr-primitives` - Nostr Protocol Building Blocks
 
-Comprehensive Nostr protocol toolkit (28 NIPs) for custom application development. Covers:
+Comprehensive Nostr protocol toolkit (37 NIPs) for custom application development. Covers:
 
 - Key generation, management, and BIP-39 mnemonic derivation (NIP-06)
 - Event creation, signing, and verification
@@ -102,12 +102,16 @@ Comprehensive Nostr protocol toolkit (28 NIPs) for custom application developmen
 - NIP-65 relay list metadata (user relay preferences for read/write routing)
 - NIP-17 private direct messages (end-to-end encrypted DMs)
 - NIP-19 bech32 encoding/decoding, NIP-21 nostr: URI scheme
+- Follow list / contact list (NIP-02)
 - DNS-based verification (NIP-05)
 - Event deletion (NIP-09), reactions (NIP-25), threads (NIP-10)
+- Proof of work (NIP-13), reposts (NIP-18)
 - Comments (NIP-22), long-form content (NIP-23), extra metadata (NIP-24)
-- Text note references (NIP-27), custom emoji (NIP-30), alt tags (NIP-31)
+- Text note references (NIP-27), public chat channels (NIP-28), custom emoji (NIP-30), alt tags (NIP-31)
+- Content warnings (NIP-36), expiration timestamps (NIP-40)
+- Proxy tags for bridged events (NIP-48), search (NIP-50)
 - Lists with encrypted private items (NIP-51)
-- Lightning zaps (NIP-57), badges (NIP-58)
+- Reporting (NIP-56), Lightning zaps (NIP-57), badges (NIP-58)
 - Relay-based groups (NIP-29)
 - HTTP authentication (NIP-98)
 - Event filtering and matching
@@ -136,6 +140,15 @@ Comprehensive Nostr protocol toolkit (28 NIPs) for custom application developmen
 /nostr-primitives auth
 /nostr-primitives emoji
 /nostr-primitives uri
+/nostr-primitives follows
+/nostr-primitives pow
+/nostr-primitives repost
+/nostr-primitives channels
+/nostr-primitives content-warning
+/nostr-primitives expiration
+/nostr-primitives proxy
+/nostr-primitives search
+/nostr-primitives report
 ```
 
 ## How Skills Work

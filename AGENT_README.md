@@ -523,6 +523,25 @@ await signer.disconnect()
 
 ---
 
+## Reposts (NIP-18)
+
+Create kind 6 (text note) and kind 16 (generic) reposts.
+
+```javascript
+import { nip18 } from 'nostr-core'
+
+const repost = nip18.createRepostEvent(
+  { id: noteId, pubkey: authorPk, relay: 'wss://relay.example.com' },
+  secretKey,
+  originalEvent, // embeds in content
+)
+
+const parsed = nip18.parseRepost(repost)
+// { targetEventId, targetPubkey, targetKind: 1, embeddedEvent }
+```
+
+---
+
 ## Gift Wrapping & Private DMs (NIP-59 & NIP-17)
 
 nostr-core supports multi-layer event encryption for metadata protection and private direct messages.
@@ -603,6 +622,25 @@ await pool.publish(['wss://purplepag.es', 'wss://relay.damus.io'], event)
 - To **send a user a mention/DM** → publish to their **read** relays
 - Keep lists small (2-4 relays per category)
 - Publish kind 10002 to well-known indexer relays (e.g., `wss://purplepag.es`) for discoverability
+
+---
+
+## Follow List (NIP-02)
+
+Create and parse kind 3 follow list events.
+
+```javascript
+import { nip02 } from 'nostr-core'
+
+const followList = nip02.createFollowListEvent(
+  [{ pubkey: 'abc...', relay: 'wss://relay.example.com', petname: 'alice' }],
+  secretKey,
+)
+
+const contacts = nip02.parseFollowList(followList) // [{ pubkey, relay?, petname? }]
+const follows = nip02.isFollowing(followList, 'abc...') // true
+const pubkeys = nip02.getFollowedPubkeys(followList) // ['abc...']
+```
 
 ---
 
@@ -687,6 +725,22 @@ const info = await nip11.fetchRelayInfo('wss://relay.damus.io')
 console.log(info.name, info.supported_nips)
 
 const hasAuth = nip11.supportsNip(info, 42) // true/false
+```
+
+---
+
+## Proof of Work (NIP-13)
+
+Mine and verify proof-of-work on events.
+
+```javascript
+import { nip13 } from 'nostr-core'
+
+const mined = nip13.minePow(template, 16) // Mine 16 bits of difficulty
+const event = finalizeEvent(mined, secretKey)
+
+const difficulty = nip13.getPowDifficulty(event) // e.g. 17
+const isValid = nip13.verifyPow(event, 16) // true
 ```
 
 ---
@@ -791,6 +845,24 @@ const html = nip27.replaceReferences(content, ref => `<a href="${ref.uri}">@${re
 
 ---
 
+## Public Chat (NIP-28)
+
+Channel-based public chat (kinds 40-44).
+
+```javascript
+import { nip28 } from 'nostr-core'
+
+const channel = nip28.createChannelEvent(
+  { name: 'General', about: 'General discussion' },
+  secretKey,
+)
+
+const msg = nip28.createChannelMessageEvent(channel.id, 'Hello!', secretKey)
+const parsed = nip28.parseChannelMessage(msg) // { channelId, content, replyTo? }
+```
+
+---
+
 ## Relay-based Groups (NIP-29)
 
 Create group chat messages and admin actions.
@@ -819,6 +891,34 @@ const codes = nip30.extractEmojiShortcodes('Hello :sats: world') // ['sats']
 
 ---
 
+## Content Warning (NIP-36)
+
+Flag events with sensitive content warnings.
+
+```javascript
+import { nip36 } from 'nostr-core'
+
+const tags = nip36.addContentWarning([], 'spoiler for movie')
+const reason = nip36.getContentWarning(event) // 'spoiler for movie'
+const hasCw = nip36.hasContentWarning(event) // true
+```
+
+---
+
+## Expiration Timestamp (NIP-40)
+
+Add expiration timestamps to events.
+
+```javascript
+import { nip40 } from 'nostr-core'
+
+const oneHour = Math.floor(Date.now() / 1000) + 3600
+const tags = nip40.addExpiration([], oneHour)
+const expired = nip40.isExpired(event) // true/false
+```
+
+---
+
 ## Client Authentication (NIP-42)
 
 Authenticate to relays. Includes relay.onauth callback and relay.auth() method.
@@ -840,6 +940,36 @@ relay.onauth = async (challenge) => {
 
 ---
 
+## Proxy Tags (NIP-48)
+
+Mark events bridged from other protocols.
+
+```javascript
+import { nip48 } from 'nostr-core'
+
+const tags = nip48.addProxyTag([], 'https://mastodon.social/@user/123', 'activitypub')
+const proxies = nip48.getProxyTags(event) // [{ id, protocol }]
+const isProxy = nip48.isProxied(event) // true
+```
+
+---
+
+## Search (NIP-50)
+
+Build search filters for NIP-50 compatible relays.
+
+```javascript
+import { nip50 } from 'nostr-core'
+
+const filter = nip50.buildSearchFilter('bitcoin lightning', { kinds: [1], limit: 20 })
+// { kinds: [1], limit: 20, search: 'bitcoin lightning' }
+
+const parsed = nip50.parseSearchQuery('bitcoin include:spam language:en')
+// { text: 'bitcoin', modifiers: { include: 'spam', language: 'en' } }
+```
+
+---
+
 ## Lists (NIP-51)
 
 Create and parse lists with optional NIP-44 encrypted private items.
@@ -855,6 +985,24 @@ const list = nip51.createListEvent({
 
 const parsed = nip51.parseList(list, secretKey)
 // { kind, publicItems, privateItems }
+```
+
+---
+
+## Reporting (NIP-56)
+
+Report objectionable content or users with kind 1984.
+
+```javascript
+import { nip56 } from 'nostr-core'
+
+const report = nip56.createReportEvent(
+  [{ type: 'event', eventId: 'spam-id', authorPubkey: 'pk', reportType: 'spam' }],
+  secretKey,
+  'Automated spam content',
+)
+
+const parsed = nip56.parseReport(report) // { targets: [...], content }
 ```
 
 ---

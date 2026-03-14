@@ -25,20 +25,29 @@ Existing NWC libraries tend to be either:
 
 ## What's Included
 
-Beyond the NWC client, nostr-core also exports the low-level building blocks:
+Beyond the NWC client, nostr-core exports a comprehensive set of Nostr protocol primitives covering **37 NIPs**:
 
-| Module | Description |
-|--------|-------------|
-| `NWC` | High-level wallet client |
-| `Relay` / `RelayPool` | WebSocket relay connections |
-| `nip04` | AES-256-CBC encryption |
-| `nip44` | ChaCha20 encryption |
-| `nip19` | Bech32 encoding/decoding |
-| `finalizeEvent` / `verifyEvent` | Event signing and verification |
-| `generateSecretKey` / `getPublicKey` | Key generation |
-| `Filter` / `matchFilter` | Event filtering |
+| Category | Modules | Description |
+|----------|---------|-------------|
+| **Wallet** | `NWC` | High-level NIP-47 wallet client (all 10 methods) |
+| **Networking** | `Relay` / `RelayPool` | WebSocket relay connections |
+| **Events** | `finalizeEvent` / `verifyEvent` | Event signing and verification |
+| **Keys** | `generateSecretKey` / `getPublicKey` | Key generation |
+| **Encryption** | `nip04`, `nip44` | AES-256-CBC and ChaCha20 encryption |
+| **Encoding** | `nip19`, `nip21` | Bech32 encoding, `nostr:` URI scheme |
+| **Identity** | `nip02`, `nip05`, `nip06`, `nip07`, `nip24` | Follow lists, DNS identifiers, key derivation, browser signer, metadata |
+| **Social** | `nip09`, `nip10`, `nip22`, `nip25`, `nip18` | Deletions, threads, comments, reactions, reposts |
+| **Content** | `nip23`, `nip27`, `nip30`, `nip31`, `nip36` | Long-form, references, emoji, alt tags, content warnings |
+| **Messaging** | `nip17`, `nip28`, `nip59` | Private DMs (gift wrap), public chat channels |
+| **Discovery** | `nip50`, `nip51`, `nip65` | Search, lists, relay lists |
+| **Moderation** | `nip56` | Reporting |
+| **Badges** | `nip58` | Badge definitions, awards, profiles |
+| **Groups** | `nip29` | Relay-based group chat |
+| **Auth** | `nip42`, `nip46`, `nip98` | Relay auth, remote signing, HTTP auth |
+| **Utility** | `nip13`, `nip40`, `nip48`, `nip57` | Proof of work, expiration, proxy tags, zaps |
+| **Filtering** | `Filter` / `matchFilter` | Event filtering |
 
-These are the same primitives used internally by the NWC client, exposed so you can build custom Nostr applications without pulling in another library.
+These are the same primitives used internally by the NWC client, exposed so you can build complete Nostr applications without pulling in another library.
 
 ## Coming from @getalby/sdk?
 

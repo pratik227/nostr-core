@@ -58,6 +58,7 @@ export { matchFilter, matchFilters } from './filter.js'
 export type { Filter } from './filter.js'
 
 // NIPs
+export * as nip02 from './nip02.js'
 export * as nip04 from './nip04.js'
 export * as nip05 from './nip05.js'
 export * as nip06 from './nip06.js'
@@ -65,7 +66,9 @@ export * as nip07 from './nip07.js'
 export * as nip09 from './nip09.js'
 export * as nip10 from './nip10.js'
 export * as nip11 from './nip11.js'
+export * as nip13 from './nip13.js'
 export * as nip17 from './nip17.js'
+export * as nip18 from './nip18.js'
 export * as nip19 from './nip19.js'
 export * as nip21 from './nip21.js'
 export * as nip22 from './nip22.js'
@@ -73,13 +76,19 @@ export * as nip23 from './nip23.js'
 export * as nip24 from './nip24.js'
 export * as nip25 from './nip25.js'
 export * as nip27 from './nip27.js'
+export * as nip28 from './nip28.js'
 export * as nip29 from './nip29.js'
 export * as nip30 from './nip30.js'
 export * as nip31 from './nip31.js'
+export * as nip36 from './nip36.js'
+export * as nip40 from './nip40.js'
 export * as nip42 from './nip42.js'
 export * as nip44 from './nip44.js'
 export * as nip46 from './nip46.js'
+export * as nip48 from './nip48.js'
+export * as nip50 from './nip50.js'
 export * as nip51 from './nip51.js'
+export * as nip56 from './nip56.js'
 export * as nip57 from './nip57.js'
 export * as nip58 from './nip58.js'
 export * as nip59 from './nip59.js'
@@ -182,6 +191,39 @@ export type { BadgeDefinition, BadgeAward, ProfileBadge, BadgeProof, BadgeReques
 // NIP-98
 export { createHttpAuthEventTemplate, createHttpAuthEvent, getAuthorizationHeader, verifyHttpAuthEvent } from './nip98.js'
 export type { HttpAuthOptions } from './nip98.js'
+
+// NIP-02
+export { createFollowListEventTemplate, createFollowListEvent, parseFollowList, isFollowing, getFollowedPubkeys } from './nip02.js'
+export type { ContactEntry } from './nip02.js'
+
+// NIP-13
+export { countLeadingZeroBits, getPowDifficulty, getTargetDifficulty, verifyPow, minePow } from './nip13.js'
+
+// NIP-18
+export { createRepostEventTemplate, createRepostEvent, parseRepost } from './nip18.js'
+export type { RepostTarget } from './nip18.js'
+
+// NIP-28
+export { createChannelEventTemplate, createChannelEvent, createChannelMetadataEventTemplate, createChannelMetadataEvent, createChannelMessageEventTemplate, createChannelMessageEvent, createChannelHideMessageEventTemplate, createChannelMuteUserEventTemplate, parseChannelMetadata, parseChannelMessage } from './nip28.js'
+export type { ChannelMetadata } from './nip28.js'
+
+// NIP-36
+export { addContentWarning, getContentWarning, hasContentWarning } from './nip36.js'
+
+// NIP-40
+export { addExpiration, getExpiration, isExpired } from './nip40.js'
+
+// NIP-48
+export { addProxyTag, getProxyTags, isProxied, getProxyByProtocol } from './nip48.js'
+export type { ProxyProtocol, ProxyTag } from './nip48.js'
+
+// NIP-50
+export { buildSearchFilter, parseSearchQuery, buildSearchQuery } from './nip50.js'
+export type { SearchFilter } from './nip50.js'
+
+// NIP-56
+export { createReportEventTemplate, createReportEvent, parseReport } from './nip56.js'
+export type { ReportType, ReportTarget } from './nip56.js'
 
 // Networking
 export { Relay, Subscription } from './relay.js'

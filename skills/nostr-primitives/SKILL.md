@@ -1,6 +1,6 @@
 ---
 name: nostr-primitives
-description: Use nostr-core's low-level Nostr protocol primitives to build custom applications. Covers 28 NIPs including key generation, event signing, relay connections, encryption (NIP-04/NIP-44), gift wrapping (NIP-59), relay metadata (NIP-65), private DMs (NIP-17), bech32 encoding (NIP-19), URI scheme (NIP-21), threads (NIP-10), reactions (NIP-25), deletion (NIP-09), comments (NIP-22), long-form content (NIP-23), lists (NIP-51), zaps (NIP-57), badges (NIP-58), groups (NIP-29), DNS verification (NIP-05), relay info (NIP-11), HTTP auth (NIP-98), and more.
+description: Use nostr-core's low-level Nostr protocol primitives to build custom applications. Covers 37 NIPs including key generation, event signing, relay connections, encryption (NIP-04/NIP-44), gift wrapping (NIP-59), relay metadata (NIP-65), private DMs (NIP-17), bech32 encoding (NIP-19), URI scheme (NIP-21), threads (NIP-10), reactions (NIP-25), deletion (NIP-09), comments (NIP-22), long-form content (NIP-23), lists (NIP-51), zaps (NIP-57), badges (NIP-58), groups (NIP-29), DNS verification (NIP-05), relay info (NIP-11), HTTP auth (NIP-98), and more.
 user-invocable: true
 argument-hint: "[keys, events, relays, encryption, giftwrap, relaylist, dm, encoding, signer, nip07, nip46, deletion, threads, reactions, comments, articles, lists, zaps, badges, groups, dns, auth, emoji, or uri]"
 ---
@@ -192,6 +192,23 @@ const ciphertext = nip44.encrypt(conversationKey, 'Secret message')
 const plaintext = nip44.decrypt(conversationKey, ciphertext)
 ```
 
+### NIP-02: Follow List (Contact List)
+
+```ts
+import { nip02 } from 'nostr-core'
+
+// Create follow list
+const followList = nip02.createFollowListEvent(
+  [{ pubkey: 'abc...', relay: 'wss://relay.example.com', petname: 'alice' }],
+  secretKey,
+)
+
+// Parse follow list
+const contacts = nip02.parseFollowList(event) // ContactEntry[]
+const follows = nip02.isFollowing(event, pubkey) // boolean
+const pubkeys = nip02.getFollowedPubkeys(event) // string[]
+```
+
 ### NIP-04 (Legacy)
 
 AES-256-CBC encryption. Use only for backward compatibility:
@@ -294,6 +311,29 @@ const reply = nip17.wrapDirectMessage(
 |----------|-------------|
 | `wrapDirectMessage(content, senderSk, recipientPk, tags?)` | Create gift-wrapped kind 14 DM |
 | `unwrapDirectMessage(wrap, recipientSk)` | Unwrap and return `{ sender, content, tags, created_at, id }` |
+
+---
+
+### NIP-18: Reposts
+
+```ts
+import { nip18 } from 'nostr-core'
+
+// Repost a text note (kind 6)
+const repost = nip18.createRepostEvent(
+  { id: noteId, pubkey: authorPk },
+  secretKey,
+  originalEvent,
+)
+
+// Generic repost (kind 16)
+const generic = nip18.createRepostEvent(
+  { id: eventId, pubkey: authorPk, kind: 30023 },
+  secretKey,
+)
+
+const parsed = nip18.parseRepost(repost) // { targetEventId, targetKind, embeddedEvent? }
+```
 
 ---
 
@@ -709,6 +749,22 @@ nip11.supportsNip(info, 44) // boolean (NIP-44 encryption)
 
 ---
 
+### NIP-13: Proof of Work
+
+```ts
+import { nip13 } from 'nostr-core'
+
+// Mine PoW
+const mined = nip13.minePow(template, 16) // 16 bits difficulty
+const event = finalizeEvent(mined, secretKey)
+
+// Verify PoW
+const difficulty = nip13.getPowDifficulty(event) // leading zero bits
+const isValid = nip13.verifyPow(event, 16) // checks actual + committed
+```
+
+---
+
 ## nostr: URI Scheme (NIP-21)
 
 ```typescript
@@ -854,6 +910,30 @@ const html = nip27.replaceReferences(content, ref => {
 
 ---
 
+### NIP-28: Public Chat
+
+```ts
+import { nip28 } from 'nostr-core'
+
+// Create channel (kind 40)
+const channel = nip28.createChannelEvent(
+  { name: 'General', about: 'Discussion' },
+  secretKey,
+)
+
+// Send message (kind 42)
+const msg = nip28.createChannelMessageEvent(channel.id, 'Hello!', secretKey)
+
+// Reply to message
+const reply = nip28.createChannelMessageEvent(channel.id, 'Reply!', secretKey, undefined, msg.id)
+
+// Parse
+const meta = nip28.parseChannelMetadata(event) // { name, about?, picture? }
+const message = nip28.parseChannelMessage(event) // { channelId, content, replyTo? }
+```
+
+---
+
 ## Relay-based Groups (NIP-29)
 
 ```typescript
@@ -911,6 +991,31 @@ const alt = nip31.getAltTag(event) // string | undefined
 
 ---
 
+### NIP-36: Sensitive Content / Content Warning
+
+```ts
+import { nip36 } from 'nostr-core'
+
+const tags = nip36.addContentWarning([], 'spoiler')
+const reason = nip36.getContentWarning(event) // 'spoiler' | undefined
+const hasCw = nip36.hasContentWarning(event) // boolean
+```
+
+---
+
+### NIP-40: Expiration Timestamp
+
+```ts
+import { nip40 } from 'nostr-core'
+
+const oneHour = Math.floor(Date.now() / 1000) + 3600
+const tags = nip40.addExpiration([], oneHour)
+const exp = nip40.getExpiration(event) // number | undefined
+const expired = nip40.isExpired(event) // boolean
+```
+
+---
+
 ## Client Authentication (NIP-42)
 
 ```typescript
@@ -930,6 +1035,35 @@ relay.onauth = async (challenge) => {
 
 // Server-side verification
 const valid = nip42.verifyAuthEvent(event, challenge, relayUrl) // boolean
+```
+
+---
+
+### NIP-48: Proxy Tags
+
+```ts
+import { nip48 } from 'nostr-core'
+
+const tags = nip48.addProxyTag([], 'https://mastodon.social/@user/123', 'activitypub')
+const proxies = nip48.getProxyTags(event) // [{ id, protocol }]
+const bridged = nip48.isProxied(event) // boolean
+const ap = nip48.getProxyByProtocol(event, 'activitypub') // ProxyTag | undefined
+```
+
+---
+
+### NIP-50: Search
+
+```ts
+import { nip50 } from 'nostr-core'
+
+const filter = nip50.buildSearchFilter('bitcoin', { kinds: [1], limit: 20 })
+// { kinds: [1], limit: 20, search: 'bitcoin' }
+
+const parsed = nip50.parseSearchQuery('bitcoin include:spam language:en')
+// { text: 'bitcoin', modifiers: { include: 'spam', language: 'en' } }
+
+const query = nip50.buildSearchQuery('bitcoin', { language: 'en' })
 ```
 
 ---
@@ -954,6 +1088,29 @@ const parsed = nip51.parseList(list, secretKey)
 const pubkeys = nip51.getPubkeys(parsed)
 const eventIds = nip51.getEventIds(parsed)
 const hashtags = nip51.getHashtags(parsed)
+```
+
+---
+
+### NIP-56: Reporting
+
+```ts
+import { nip56 } from 'nostr-core'
+
+// Report a user
+const report = nip56.createReportEvent(
+  [{ type: 'pubkey', pubkey: 'bad-pk', reportType: 'spam' }],
+  secretKey,
+)
+
+// Report an event
+const eventReport = nip56.createReportEvent(
+  [{ type: 'event', eventId: 'id', authorPubkey: 'pk', reportType: 'nudity' }],
+  secretKey,
+  'Explicit content',
+)
+
+const parsed = nip56.parseReport(reportEvent) // { targets, content }
 ```
 
 ---

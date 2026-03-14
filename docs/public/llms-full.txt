@@ -1809,6 +1809,35 @@ Tests whether an event matches **any** filter (logical OR).
 
 ---
 
+# API Reference: NIP-02
+
+Follow List (Contact List) - kind 3 events storing a user's follow list with `p` tags.
+
+## Import
+```ts
+import { nip02 } from 'nostr-core'
+```
+
+## nip02.createFollowListEvent
+```ts
+function createFollowListEvent(contacts: ContactEntry[], secretKey: Uint8Array): NostrEvent
+```
+Creates and signs a kind 3 follow list event. ContactEntry: `{ pubkey, relay?, petname? }`.
+
+## nip02.parseFollowList
+```ts
+function parseFollowList(event: NostrEvent): ContactEntry[]
+```
+Parses a kind 3 event into contact entries.
+
+## nip02.isFollowing / getFollowedPubkeys
+```ts
+function isFollowing(event: NostrEvent, pubkey: string): boolean
+function getFollowedPubkeys(event: NostrEvent): string[]
+```
+
+---
+
 # API Reference: NIP-05
 
 DNS-Based Verification - verify Nostr identities via `https://<domain>/.well-known/nostr.json`.
@@ -1977,6 +2006,58 @@ Converts `wss://` to `https://`, fetches with `Accept: application/nostr+json`.
 
 ```ts
 function supportsNip(info: RelayInfo, nip: number): boolean
+```
+
+---
+
+# API Reference: NIP-13
+
+Proof of Work - leading zero bits in event IDs for spam deterrence.
+
+## Import
+```ts
+import { nip13 } from 'nostr-core'
+```
+
+## nip13.minePow
+```ts
+function minePow(template: EventTemplate, targetDifficulty: number): EventTemplate
+```
+Mines PoW by incrementing a nonce tag. CPU-intensive for high difficulties.
+
+## nip13.verifyPow
+```ts
+function verifyPow(event: NostrEvent, minDifficulty: number): boolean
+```
+Verifies both actual difficulty and committed target difficulty.
+
+## nip13.getPowDifficulty / getTargetDifficulty / countLeadingZeroBits
+```ts
+function getPowDifficulty(event: NostrEvent): number
+function getTargetDifficulty(event: NostrEvent | EventTemplate): number
+function countLeadingZeroBits(hex: string): number
+```
+
+---
+
+# API Reference: NIP-18
+
+Reposts - kind 6 for text note reposts, kind 16 for generic reposts.
+
+## Import
+```ts
+import { nip18 } from 'nostr-core'
+```
+
+## nip18.createRepostEvent
+```ts
+function createRepostEvent(target: RepostTarget, secretKey: Uint8Array, originalEvent?: NostrEvent): NostrEvent
+```
+RepostTarget: `{ id, pubkey, relay?, kind? }`. Kind 6 for text notes, kind 16 for other kinds. Embeds original event JSON in content.
+
+## nip18.parseRepost
+```ts
+function parseRepost(event: NostrEvent): { targetEventId?; targetPubkey?; targetRelay?; targetKind?; embeddedEvent? }
 ```
 
 ---
@@ -2153,6 +2234,37 @@ function replaceReferences(content: string, replacer: (ref: ContentReference) =>
 
 ---
 
+# API Reference: NIP-28
+
+Public Chat - channel-based public chat (kinds 40-44).
+
+## Import
+```ts
+import { nip28 } from 'nostr-core'
+```
+
+## nip28.createChannelEvent
+```ts
+function createChannelEvent(metadata: ChannelMetadata, secretKey: Uint8Array): NostrEvent
+```
+Creates kind 40 channel. ChannelMetadata: `{ name, about?, picture? }`. The event ID becomes the channel ID.
+
+## nip28.createChannelMessageEvent
+```ts
+function createChannelMessageEvent(channelId: string, content: string, secretKey: Uint8Array, recommendedRelay?: string, replyTo?: string): NostrEvent
+```
+Creates kind 42 channel message with optional reply.
+
+## nip28.parseChannelMetadata / parseChannelMessage
+```ts
+function parseChannelMetadata(event: NostrEvent): ChannelMetadata
+function parseChannelMessage(event: NostrEvent): { channelId?; content; replyTo? }
+```
+
+Also: `createChannelMetadataEvent` (kind 41), `createChannelHideMessageEventTemplate` (kind 43), `createChannelMuteUserEventTemplate` (kind 44).
+
+---
+
 # API Reference: NIP-29
 
 Relay-based Groups - group chat messages and admin actions.
@@ -2244,6 +2356,42 @@ function getAltTag(event: NostrEvent): string | undefined
 
 ---
 
+# API Reference: NIP-36
+
+Sensitive Content / Content Warning - `content-warning` tag for flagging sensitive events.
+
+## Import
+```ts
+import { nip36 } from 'nostr-core'
+```
+
+## Functions
+```ts
+function addContentWarning(tags: string[][], reason?: string): string[][]
+function getContentWarning(event: NostrEvent | EventTemplate): string | undefined
+function hasContentWarning(event: NostrEvent | EventTemplate): boolean
+```
+
+---
+
+# API Reference: NIP-40
+
+Expiration Timestamp - `expiration` tag for time-limited events.
+
+## Import
+```ts
+import { nip40 } from 'nostr-core'
+```
+
+## Functions
+```ts
+function addExpiration(tags: string[][], expiration: number): string[][]
+function getExpiration(event: NostrEvent | EventTemplate): number | undefined
+function isExpired(event: NostrEvent | EventTemplate, now?: number): boolean
+```
+
+---
+
 # API Reference: NIP-42
 
 Client Authentication to Relays - kind 22242 auth events.
@@ -2272,6 +2420,44 @@ function verifyAuthEvent(event: NostrEvent, challenge: string, relayUrl: string)
 ```ts
 relay.onauth = (challenge: string) => void  // callback for AUTH messages
 relay.auth(event: NostrEvent): Promise<string>  // send AUTH response
+```
+
+---
+
+# API Reference: NIP-48
+
+Proxy Tags - marks events bridged from other protocols.
+
+## Import
+```ts
+import { nip48 } from 'nostr-core'
+```
+
+## Functions
+```ts
+function addProxyTag(tags: string[][], id: string, protocol: ProxyProtocol): string[][]
+function getProxyTags(event: NostrEvent | EventTemplate): ProxyTag[]
+function isProxied(event: NostrEvent | EventTemplate): boolean
+function getProxyByProtocol(event: NostrEvent | EventTemplate, protocol: ProxyProtocol): ProxyTag | undefined
+```
+ProxyProtocol: `'activitypub' | 'atproto' | 'rss' | 'web' | string`. ProxyTag: `{ id, protocol }`.
+
+---
+
+# API Reference: NIP-50
+
+Search - extends Nostr filters with a `search` field for full-text search.
+
+## Import
+```ts
+import { nip50 } from 'nostr-core'
+```
+
+## Functions
+```ts
+function buildSearchFilter(query: string, filter?: Filter): SearchFilter
+function parseSearchQuery(query: string): { text: string; modifiers: Record<string, string> }
+function buildSearchQuery(text: string, modifiers?: Record<string, string>): string
 ```
 
 ---
@@ -2311,6 +2497,29 @@ function getPubkeys(list: ParsedList): string[]
 function getHashtags(list: ParsedList): string[]
 function getRelayUrls(list: ParsedList): string[]
 function getAddresses(list: ParsedList): string[]
+```
+
+---
+
+# API Reference: NIP-56
+
+Reporting - kind 1984 events for reporting objectionable content or users.
+
+## Import
+```ts
+import { nip56 } from 'nostr-core'
+```
+
+## nip56.createReportEvent
+```ts
+function createReportEvent(targets: ReportTarget[], secretKey: Uint8Array, content?: string): NostrEvent
+```
+ReportTarget: `{ type: 'pubkey'; pubkey; reportType }` or `{ type: 'event'; eventId; authorPubkey; reportType }`.
+ReportType: `'nudity' | 'malware' | 'profanity' | 'illegal' | 'spam' | 'impersonation' | 'other'`.
+
+## nip56.parseReport
+```ts
+function parseReport(event: NostrEvent): { targets: ReportTarget[]; content: string }
 ```
 
 ---

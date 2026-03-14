@@ -194,14 +194,20 @@ With 81% fewer dependencies, `nostr-core` still implements every NIP-47 method.
 
 ## Low-Level Building Blocks
 
-`nostr-core` exports its internals so you don't need a separate `nostr-tools` install:
+`nostr-core` exports **37 NIP implementations** so you don't need a separate `nostr-tools` install:
 
-- Key management: `generateSecretKey`, `getPublicKey`
-- Events: `finalizeEvent`, `verifyEvent`, `getEventHash`
-- Relay connections: `Relay`, `RelayPool`
-- Encryption: `nip04`, `nip44`
-- Encoding: `nip19` (bech32)
-- Filtering: `matchFilter`, `matchFilters`
+- **Keys**: `generateSecretKey`, `getPublicKey`, `nip06` (BIP-39 mnemonic derivation)
+- **Events**: `finalizeEvent`, `verifyEvent`, `getEventHash`
+- **Relay**: `Relay`, `RelayPool`, `nip11` (relay info), `nip42` (auth), `nip65` (relay lists)
+- **Encryption**: `nip04`, `nip44`
+- **Encoding**: `nip19` (bech32), `nip21` (nostr: URIs)
+- **Identity**: `nip02` (follow lists), `nip05` (DNS identifiers), `nip07` (browser signer), `nip24` (metadata)
+- **Social**: `nip09` (deletion), `nip10` (threads), `nip22` (comments), `nip25` (reactions), `nip18` (reposts)
+- **Content**: `nip23` (long-form), `nip27` (references), `nip30` (emoji), `nip31` (alt tags), `nip36` (content warnings)
+- **Messaging**: `nip17`/`nip59` (private DMs), `nip28` (public chat channels)
+- **Discovery**: `nip50` (search), `nip51` (lists), `nip56` (reporting), `nip58` (badges)
+- **Utility**: `nip13` (proof of work), `nip40` (expiration), `nip48` (proxy tags), `nip57` (zaps)
+- **Filtering**: `matchFilter`, `matchFilters`
 
 ## Lightning Address Support
 

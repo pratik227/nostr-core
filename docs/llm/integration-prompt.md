@@ -112,98 +112,148 @@ All signers: signer.getPublicKey(), signer.signEvent(template), signer.nip04?.en
 
 ## Additional NIPs
 
-7. DNS VERIFICATION (NIP-05)
+7. FOLLOW LIST (NIP-02)
+   import { nip02 } from 'nostr-core'
+   nip02.createFollowListEvent([{ pubkey, relay?, petname? }], secretKey) // kind 3
+   nip02.parseFollowList(event) // ContactEntry[]
+   nip02.isFollowing(event, pubkey) // boolean
+
+8. DNS VERIFICATION (NIP-05)
    import { nip05 } from 'nostr-core'
    const result = await nip05.queryNip05('bob@example.com') // { pubkey, relays? }
    const valid = await nip05.verifyNip05('bob@example.com', expectedPubkey) // boolean
 
-8. KEY DERIVATION (NIP-06)
+9. KEY DERIVATION (NIP-06)
    import { nip06 } from 'nostr-core'
    const mnemonic = nip06.generateMnemonic() // 12-word BIP-39
    const { secretKey, publicKey } = nip06.mnemonicToKey(mnemonic, accountIndex?)
 
-9. EVENT DELETION (NIP-09)
-   import { nip09 } from 'nostr-core'
-   const deletion = nip09.createDeletionEvent({ targets: [{ type: 'event', id }], reason? }, sk)
-   nip09.isDeletionOf(deletion, targetEvent) // boolean
+10. EVENT DELETION (NIP-09)
+    import { nip09 } from 'nostr-core'
+    const deletion = nip09.createDeletionEvent({ targets: [{ type: 'event', id }], reason? }, sk)
+    nip09.isDeletionOf(deletion, targetEvent) // boolean
 
-10. THREADS (NIP-10)
+11. THREADS (NIP-10)
     import { nip10 } from 'nostr-core'
     const thread = nip10.parseThread(event) // { root?, reply?, mentions[], profiles[] }
     const tags = nip10.buildThreadTags({ root: { id }, reply: { id } })
 
-11. RELAY INFO (NIP-11)
+12. RELAY INFO (NIP-11)
     import { nip11 } from 'nostr-core'
     const info = await nip11.fetchRelayInfo('wss://relay.damus.io')
     nip11.supportsNip(info, 42) // boolean
 
-12. NOSTR URI (NIP-21)
+13. PROOF OF WORK (NIP-13)
+    import { nip13 } from 'nostr-core'
+    nip13.minePow(template, difficulty) // mine PoW nonce
+    nip13.verifyPow(event, minDifficulty) // verify PoW
+    nip13.getPowDifficulty(event) // leading zero bits
+
+14. REPOSTS (NIP-18)
+    import { nip18 } from 'nostr-core'
+    nip18.createRepostEvent({ id, pubkey, kind? }, secretKey, originalEvent?) // kind 6 or 16
+    nip18.parseRepost(event) // { targetEventId, targetKind, embeddedEvent? }
+
+15. NOSTR URI (NIP-21)
     import { nip21 } from 'nostr-core'
     nip21.encodeNostrURI('npub1...') // 'nostr:npub1...'
     nip21.decodeNostrURI('nostr:npub1...') // DecodedResult
     nip21.isNostrURI(str) // boolean
 
-13. COMMENTS (NIP-22)
+16. COMMENTS (NIP-22)
     import { nip22 } from 'nostr-core'
     nip22.createCommentEvent(content, { rootType, rootId, rootKind?, rootPubkey? }, sk)
     nip22.parseComment(event) // { rootType, rootId, content, ... }
 
-14. LONG-FORM CONTENT (NIP-23)
+17. LONG-FORM CONTENT (NIP-23)
     import { nip23 } from 'nostr-core'
     nip23.createLongFormEvent({ identifier, title?, content, hashtags? }, sk)
     nip23.parseLongForm(event) // { identifier, title, content, isDraft, ... }
 
-15. EXTRA METADATA (NIP-24)
+18. EXTRA METADATA (NIP-24)
     import { nip24 } from 'nostr-core'
     nip24.parseExtendedMetadata(event) // { display_name?, website?, banner?, bot?, ... }
     nip24.buildUniversalTags({ hashtags: ['nostr'], references: ['https://...'] })
 
-16. REACTIONS (NIP-25)
+19. REACTIONS (NIP-25)
     import { nip25 } from 'nostr-core'
     nip25.createReactionEvent({ targetEvent: { id, pubkey }, content: '+' }, sk)
     nip25.parseReaction(event) // { isPositive, isNegative, emoji?, ... }
 
-17. TEXT REFERENCES (NIP-27)
+20. TEXT REFERENCES (NIP-27)
     import { nip27 } from 'nostr-core'
     nip27.extractReferences(content) // [{ uri, decoded, start, end }]
     nip27.replaceReferences(content, ref => `<a>${ref.uri}</a>`)
 
-18. GROUPS (NIP-29)
+21. PUBLIC CHAT (NIP-28)
+    import { nip28 } from 'nostr-core'
+    nip28.createChannelEvent({ name, about?, picture? }, secretKey) // kind 40
+    nip28.createChannelMessageEvent(channelId, content, secretKey) // kind 42
+    nip28.parseChannelMetadata(event) // { name, about?, picture? }
+
+22. GROUPS (NIP-29)
     import { nip29 } from 'nostr-core'
     nip29.createGroupChatEvent(groupId, content, sk)
     nip29.parseGroupMetadata(event) // { id, name, about, ... }
 
-19. CUSTOM EMOJI (NIP-30)
+23. CUSTOM EMOJI (NIP-30)
     import { nip30 } from 'nostr-core'
     nip30.parseCustomEmojis(event) // [{ shortcode, url }]
     nip30.buildEmojiTags([{ shortcode: 'sats', url: 'https://...' }])
 
-20. ALT TAG (NIP-31)
+24. ALT TAG (NIP-31)
     import { nip31 } from 'nostr-core'
     nip31.addAltTag(tags, 'Description for unknown event kind')
     nip31.getAltTag(event) // string | undefined
 
-21. RELAY AUTH (NIP-42)
+25. CONTENT WARNING (NIP-36)
+    import { nip36 } from 'nostr-core'
+    nip36.addContentWarning(tags, reason?) // add content-warning tag
+    nip36.getContentWarning(event) // string | undefined
+    nip36.hasContentWarning(event) // boolean
+
+26. EXPIRATION (NIP-40)
+    import { nip40 } from 'nostr-core'
+    nip40.addExpiration(tags, unixTimestamp) // add expiration tag
+    nip40.isExpired(event) // boolean
+
+27. RELAY AUTH (NIP-42)
     import { nip42 } from 'nostr-core'
     nip42.createAuthEvent({ relay: relayUrl, challenge }, sk)
     relay.onauth = (challenge) => { relay.auth(nip42.createAuthEvent(...)) }
 
-22. LISTS (NIP-51)
+28. PROXY TAGS (NIP-48)
+    import { nip48 } from 'nostr-core'
+    nip48.addProxyTag(tags, id, protocol) // add proxy tag
+    nip48.getProxyTags(event) // ProxyTag[]
+    nip48.isProxied(event) // boolean
+
+29. SEARCH (NIP-50)
+    import { nip50 } from 'nostr-core'
+    nip50.buildSearchFilter(query, filter?) // SearchFilter with search field
+    nip50.parseSearchQuery(query) // { text, modifiers }
+
+30. LISTS (NIP-51)
     import { nip51 } from 'nostr-core'
     nip51.createListEvent({ kind: 10000, publicItems, privateItems? }, sk)
     nip51.parseList(event, sk?) // { publicItems, privateItems }
 
-23. ZAPS (NIP-57)
+31. REPORTING (NIP-56)
+    import { nip56 } from 'nostr-core'
+    nip56.createReportEvent(targets, secretKey, content?) // kind 1984
+    nip56.parseReport(event) // { targets: ReportTarget[], content }
+
+32. ZAPS (NIP-57)
     import { nip57 } from 'nostr-core'
     nip57.createZapRequestEvent({ recipientPubkey, amount, relays }, sk)
     nip57.parseZapReceipt(event) // { recipientPubkey, senderPubkey, amount, bolt11 }
 
-24. BADGES (NIP-58)
+33. BADGES (NIP-58)
     import { nip58 } from 'nostr-core'
     nip58.createBadgeDefinitionEvent({ identifier, name, description }, sk)
     nip58.createBadgeAwardEvent({ badgeAddress, recipients }, sk)
 
-25. HTTP AUTH (NIP-98)
+34. HTTP AUTH (NIP-98)
     import { nip98 } from 'nostr-core'
     const authEvent = nip98.createHttpAuthEvent({ url, method, body? }, sk)
     const header = nip98.getAuthorizationHeader(authEvent) // "Nostr <base64>"
