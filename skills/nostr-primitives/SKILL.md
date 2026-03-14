@@ -1,15 +1,15 @@
 ---
 name: nostr-primitives
-description: Use nostr-core's low-level Nostr protocol primitives to build custom applications. Covers key generation, event signing and verification, relay connections, NIP-04 and NIP-44 encryption, NIP-59 gift wrapping, NIP-17 private direct messages, bech32 encoding, event filtering, unified Signer interface, browser extension signing (NIP-07), and remote signing via Nostr Connect (NIP-46). Use for custom Nostr app development beyond standard wallet operations.
+description: Use nostr-core's low-level Nostr protocol primitives to build custom applications. Covers 28 NIPs including key generation, event signing, relay connections, encryption (NIP-04/NIP-44), gift wrapping (NIP-59), relay metadata (NIP-65), private DMs (NIP-17), bech32 encoding (NIP-19), URI scheme (NIP-21), threads (NIP-10), reactions (NIP-25), deletion (NIP-09), comments (NIP-22), long-form content (NIP-23), lists (NIP-51), zaps (NIP-57), badges (NIP-58), groups (NIP-29), DNS verification (NIP-05), relay info (NIP-11), HTTP auth (NIP-98), and more.
 user-invocable: true
-argument-hint: "[keys, events, relays, encryption, giftwrap, dm, encoding, signer, nip07, or nip46]"
+argument-hint: "[keys, events, relays, encryption, giftwrap, relaylist, dm, encoding, signer, nip07, nip46, deletion, threads, reactions, comments, articles, lists, zaps, badges, groups, dns, auth, emoji, or uri]"
 ---
 
 # Nostr Protocol Primitives with nostr-core
 
 You are helping the user build custom Nostr applications using the low-level primitives exported by **nostr-core**. These are the same building blocks used internally by the NWC client.
 
-**When to use this skill:** The user wants to build something beyond standard wallet operations - custom Nostr events, direct relay communication, encrypted messaging, identity management, or delegated signing via browser extensions (NIP-07) or remote signers (NIP-46).
+**When to use this skill:** The user wants to build something beyond standard wallet operations - custom Nostr events, direct relay communication, encrypted messaging, identity management, delegated signing via browser extensions (NIP-07) or remote signers (NIP-46), social interactions (reactions, threads, comments), content publishing, lists, zaps, badges, groups, DNS verification, or HTTP authentication.
 
 ---
 
@@ -525,6 +525,68 @@ const { remotePubkey, relayUrls, secret, appMetadata } = parseConnectionURI('nos
 
 ---
 
+## Relay List Metadata (NIP-65)
+
+Discover and publish user relay preferences. Kind 10002 replaceable events advertise which relays a user reads from and writes to.
+
+```typescript
+import { nip65, RelayPool } from 'nostr-core'
+
+const pool = new RelayPool()
+
+// Look up another user's relay list
+const events = await pool.querySync(
+  ['wss://purplepag.es'],
+  { kinds: [10002], authors: [userPubkey] },
+)
+
+if (events.length > 0) {
+  const relays = nip65.parseRelayList(events[0])
+  // [{ url: 'wss://relay.damus.io', read: true, write: true }, ...]
+
+  const writeRelays = nip65.getWriteRelays(relays) // fetch their events here
+  const readRelays = nip65.getReadRelays(relays)   // send mentions/DMs here
+}
+```
+
+### Publish your own relay list
+
+```typescript
+import { nip65, generateSecretKey } from 'nostr-core'
+
+const sk = generateSecretKey()
+
+// Create and sign a kind 10002 event
+const event = nip65.createRelayListEvent(
+  [
+    { url: 'wss://relay.damus.io', read: true, write: true },
+    { url: 'wss://nos.lol', read: true, write: false },
+    { url: 'wss://relay.nostr.band', read: false, write: true },
+  ],
+  sk,
+)
+
+// Publish to well-known indexer relays for discoverability
+await pool.publish(['wss://purplepag.es', 'wss://relay.damus.io'], event)
+```
+
+### Using with a Signer (unsigned template)
+
+```typescript
+const template = nip65.createRelayListEventTemplate([
+  { url: 'wss://relay.damus.io', read: true, write: true },
+])
+const signed = await signer.signEvent(template)
+```
+
+**Routing rules:**
+- To **fetch a user's events** → query their **write** relays
+- To **send a user a mention/DM** → publish to their **read** relays
+- No marker on an `r` tag = bidirectional (both read and write)
+- Keep lists small (2-4 relays per category)
+
+---
+
 ## Utilities
 
 ```typescript
@@ -539,6 +601,445 @@ const hex = bytesToHex(bytes)          // string
 
 // Cryptographically secure random bytes
 const random = randomBytes(32)         // Uint8Array(32)
+```
+
+---
+
+## DNS-Based Verification (NIP-05)
+
+```typescript
+import { nip05 } from 'nostr-core'
+
+// Query a NIP-05 address
+const result = await nip05.queryNip05('bob@example.com')
+// { pubkey: 'hex...', relays: ['wss://...'] }
+
+// Verify address matches expected pubkey
+const valid = await nip05.verifyNip05('bob@example.com', expectedPubkey) // boolean
+
+// Parse address parts
+const { name, domain } = nip05.parseNip05Address('bob@example.com')
+```
+
+---
+
+## Key Derivation (NIP-06)
+
+Derive Nostr keys from BIP-39 mnemonic phrases:
+
+```typescript
+import { nip06 } from 'nostr-core'
+
+const mnemonic = nip06.generateMnemonic()    // 12 words (default)
+const mnemonic24 = nip06.generateMnemonic(24) // 24 words
+
+const valid = nip06.validateMnemonic(mnemonic) // boolean
+
+// Derive key pair (path: m/44'/1237'/0'/0/0)
+const { secretKey, publicKey } = nip06.mnemonicToKey(mnemonic)
+
+// Derive multiple accounts
+const account0 = nip06.mnemonicToKey(mnemonic, 0)
+const account1 = nip06.mnemonicToKey(mnemonic, 1)
+
+// With passphrase
+const key = nip06.mnemonicToKey(mnemonic, 0, 'my-passphrase')
+```
+
+---
+
+## Event Deletion (NIP-09)
+
+```typescript
+import { nip09 } from 'nostr-core'
+
+// Delete specific events
+const deletion = nip09.createDeletionEvent(
+  {
+    targets: [
+      { type: 'event', id: 'abc123...' },
+      { type: 'address', address: '30023:pubkey:my-article' },
+    ],
+    reason: 'Posted by mistake',
+  },
+  secretKey,
+)
+
+// Parse a deletion event
+const parsed = nip09.parseDeletion(deletion)
+// { eventIds: [...], addresses: [...], kinds: [...], reason: '...' }
+
+// Check if a deletion targets a specific event
+nip09.isDeletionOf(deletion, targetEvent) // boolean
+```
+
+---
+
+## Thread References (NIP-10)
+
+```typescript
+import { nip10 } from 'nostr-core'
+
+// Parse thread structure from a reply event
+const thread = nip10.parseThread(event)
+// { root: { id, relay? }, reply: { id, relay? }, mentions: [...], profiles: [...] }
+
+// Build thread tags for a new reply
+const tags = nip10.buildThreadTags({
+  root: { id: rootEventId, relay: 'wss://relay.damus.io' },
+  reply: { id: parentEventId },
+  profiles: [authorPubkey],
+})
+```
+
+---
+
+## Relay Information (NIP-11)
+
+```typescript
+import { nip11 } from 'nostr-core'
+
+const info = await nip11.fetchRelayInfo('wss://relay.damus.io')
+console.log(info.name, info.description, info.supported_nips)
+
+// Check if relay supports a specific NIP
+nip11.supportsNip(info, 42) // boolean (AUTH support)
+nip11.supportsNip(info, 44) // boolean (NIP-44 encryption)
+```
+
+---
+
+## nostr: URI Scheme (NIP-21)
+
+```typescript
+import { nip21 } from 'nostr-core'
+
+const uri = nip21.encodeNostrURI('npub1abc...')   // 'nostr:npub1abc...'
+const decoded = nip21.decodeNostrURI(uri)          // { type: 'npub', data: '...' }
+const valid = nip21.isNostrURI('nostr:npub1abc..') // boolean
+```
+
+---
+
+## Comments (NIP-22)
+
+```typescript
+import { nip22 } from 'nostr-core'
+
+// Comment on an event
+const comment = nip22.createCommentEvent(
+  'Great article!',
+  {
+    rootType: 'event',
+    rootId: articleEventId,
+    rootKind: 30023,
+    rootPubkey: authorPk,
+  },
+  secretKey,
+)
+
+// Reply to a comment
+const reply = nip22.createCommentEvent(
+  'I agree!',
+  {
+    rootType: 'event',
+    rootId: articleEventId,
+    rootKind: 30023,
+    rootPubkey: authorPk,
+    parentType: 'event',
+    parentId: comment.id,
+    parentKind: 1111,
+    parentPubkey: commenterPk,
+  },
+  secretKey,
+)
+
+// Parse a comment
+const parsed = nip22.parseComment(comment)
+// { rootType: 'event', rootId, rootKind, content, ... }
+```
+
+---
+
+## Long-form Content (NIP-23)
+
+```typescript
+import { nip23 } from 'nostr-core'
+
+// Create an article (kind 30023)
+const article = nip23.createLongFormEvent({
+  identifier: 'my-article',
+  title: 'My Article',
+  summary: 'A brief summary',
+  image: 'https://example.com/cover.jpg',
+  content: '# Full markdown content...',
+  hashtags: ['nostr', 'bitcoin'],
+  publishedAt: Math.floor(Date.now() / 1000),
+}, secretKey)
+
+// Create a draft (kind 30024)
+const draft = nip23.createLongFormEvent({
+  identifier: 'my-draft',
+  content: 'Work in progress...',
+  isDraft: true,
+}, secretKey)
+
+// Parse article
+const parsed = nip23.parseLongForm(article)
+// { identifier, title, content, hashtags, isDraft: false, ... }
+```
+
+---
+
+## Extra Metadata (NIP-24)
+
+```typescript
+import { nip24 } from 'nostr-core'
+
+// Parse extended fields from kind 0 metadata
+const meta = nip24.parseExtendedMetadata(metadataEvent)
+// { display_name?, website?, banner?, bot?, birthday?, ... }
+
+// Build metadata content JSON
+const content = nip24.buildMetadataContent({ display_name: 'Bob', website: 'https://...' })
+
+// Parse/build universal tags (r, t, title)
+const tags = nip24.parseUniversalTags(event)  // { references?, hashtags?, title? }
+const tagArray = nip24.buildUniversalTags({ hashtags: ['nostr'], references: ['https://...'] })
+```
+
+---
+
+## Reactions (NIP-25)
+
+```typescript
+import { nip25 } from 'nostr-core'
+
+// Like an event
+const like = nip25.createReactionEvent(
+  { targetEvent: { id: eventId, pubkey: authorPk }, content: '+' },
+  secretKey,
+)
+
+// Custom emoji reaction
+const emoji = nip25.createReactionEvent(
+  { targetEvent: { id: eventId, pubkey: authorPk }, content: '🤙' },
+  secretKey,
+)
+
+// Parse reaction
+const parsed = nip25.parseReaction(like)
+// { targetEventId, targetPubkey, content: '+', isPositive: true, isNegative: false, emoji: undefined }
+```
+
+---
+
+## Text References (NIP-27)
+
+```typescript
+import { nip27 } from 'nostr-core'
+
+const content = 'Check out nostr:npub1abc... and nostr:nevent1def...'
+
+// Extract references
+const refs = nip27.extractReferences(content)
+// [{ uri: 'nostr:npub1abc...', decoded: { type: 'npub', data: '...' }, start, end }]
+
+// Replace references with HTML links
+const html = nip27.replaceReferences(content, ref => {
+  if (ref.decoded.type === 'npub') return `<a href="${ref.uri}">@${ref.decoded.data.slice(0,8)}</a>`
+  return ref.uri
+})
+```
+
+---
+
+## Relay-based Groups (NIP-29)
+
+```typescript
+import { nip29 } from 'nostr-core'
+
+// Send a group chat message
+const msg = nip29.createGroupChatEvent('group-id', 'Hello!', secretKey)
+
+// Reply to a message
+const reply = nip29.createGroupChatEvent('group-id', 'Hi back!', secretKey, parentMsgId)
+
+// Parse group metadata (kind 39000)
+const meta = nip29.parseGroupMetadata(event) // { id, name, about, picture, isOpen, isPublic }
+
+// Parse group members (kind 39002)
+const members = nip29.parseGroupMembers(event) // string[] of pubkeys
+
+// Parse group admins (kind 39001)
+const admins = nip29.parseGroupAdmins(event) // [{ pubkey, permissions }]
+```
+
+---
+
+## Custom Emoji (NIP-30)
+
+```typescript
+import { nip30 } from 'nostr-core'
+
+// Parse emoji tags from an event
+const emojis = nip30.parseCustomEmojis(event)
+// [{ shortcode: 'sats', url: 'https://...' }]
+
+// Build emoji tags
+const tags = nip30.buildEmojiTags([{ shortcode: 'sats', url: 'https://...' }])
+// [['emoji', 'sats', 'https://...']]
+
+// Extract shortcodes from text
+const codes = nip30.extractEmojiShortcodes('Hello :sats: world :zap:')
+// ['sats', 'zap']
+```
+
+---
+
+## Unknown Events / Alt Tag (NIP-31)
+
+```typescript
+import { nip31 } from 'nostr-core'
+
+// Add alt tag for unknown event kinds
+const tags = nip31.addAltTag(existingTags, 'This is a poll event')
+
+// Get alt tag from event
+const alt = nip31.getAltTag(event) // string | undefined
+```
+
+---
+
+## Client Authentication (NIP-42)
+
+```typescript
+import { nip42, Relay } from 'nostr-core'
+
+const relay = new Relay('wss://relay.example.com')
+await relay.connect()
+
+// Handle auth challenges
+relay.onauth = async (challenge) => {
+  const authEvent = nip42.createAuthEvent(
+    { relay: relay.url, challenge },
+    secretKey,
+  )
+  await relay.auth(authEvent)
+}
+
+// Server-side verification
+const valid = nip42.verifyAuthEvent(event, challenge, relayUrl) // boolean
+```
+
+---
+
+## Lists (NIP-51)
+
+```typescript
+import { nip51 } from 'nostr-core'
+
+// Create a mute list with private items
+const list = nip51.createListEvent({
+  kind: 10000,
+  publicItems: [{ tag: 'p', value: pubkeyToMute }],
+  privateItems: [{ tag: 'p', value: secretMute }], // NIP-44 encrypted
+}, secretKey)
+
+// Parse list (decrypt private items with secret key)
+const parsed = nip51.parseList(list, secretKey)
+// { kind: 10000, publicItems: [...], privateItems: [...] }
+
+// Helpers
+const pubkeys = nip51.getPubkeys(parsed)
+const eventIds = nip51.getEventIds(parsed)
+const hashtags = nip51.getHashtags(parsed)
+```
+
+---
+
+## Lightning Zaps (NIP-57)
+
+```typescript
+import { nip57 } from 'nostr-core'
+
+// Create a zap request
+const zapReq = nip57.createZapRequestEvent({
+  recipientPubkey: authorPk,
+  amount: 21000,          // millisats
+  relays: ['wss://relay.damus.io'],
+  content: 'Great post!',
+  eventId: targetEventId, // optional
+}, secretKey)
+
+// Parse a zap receipt (kind 9735)
+const receipt = nip57.parseZapReceipt(zapReceiptEvent)
+// { recipientPubkey, senderPubkey, amount, bolt11, description, preimage? }
+
+// Validate a zap receipt
+const valid = nip57.validateZapReceipt(receipt, originalRequest?)
+
+// Fetch zap invoice from LNURL
+const invoice = await nip57.fetchZapInvoice({ lnurl, zapRequest, amount })
+```
+
+---
+
+## Badges (NIP-58)
+
+```typescript
+import { nip58 } from 'nostr-core'
+
+// Create a badge definition (kind 30009)
+const badge = nip58.createBadgeDefinitionEvent({
+  identifier: 'early-adopter',
+  name: 'Early Adopter',
+  description: 'Joined before 2024',
+  image: 'https://example.com/badge.png',
+}, secretKey)
+
+// Award a badge (kind 8)
+const award = nip58.createBadgeAwardEvent({
+  badgeAddress: `30009:${pubkey}:early-adopter`,
+  recipients: [recipientPk1, recipientPk2],
+}, secretKey)
+
+// Display badges on profile (kind 30008)
+const profile = nip58.createProfileBadgesEvent([
+  { badgeAddress: `30009:${issuerPk}:early-adopter`, awardEventId: awardId },
+], secretKey)
+
+// Parse
+const def = nip58.parseBadgeDefinition(badge)     // { identifier, name, description, ... }
+const awd = nip58.parseBadgeAward(award)           // { badgeAddress, recipients }
+const badges = nip58.parseProfileBadges(profile)   // [{ badgeAddress, awardEventId }]
+```
+
+---
+
+## HTTP Auth (NIP-98)
+
+```typescript
+import { nip98 } from 'nostr-core'
+
+// Create HTTP auth event for an API request
+const authEvent = nip98.createHttpAuthEvent(
+  { url: 'https://api.example.com/upload', method: 'POST', body: fileBytes },
+  secretKey,
+)
+
+// Get Authorization header
+const header = nip98.getAuthorizationHeader(authEvent) // "Nostr <base64>"
+
+// Use with fetch
+const res = await fetch('https://api.example.com/upload', {
+  method: 'POST',
+  headers: { Authorization: header },
+  body: fileBytes,
+})
+
+// Server-side verification
+const valid = nip98.verifyHttpAuthEvent(authEvent, { url, method, body }) // boolean
 ```
 
 ---

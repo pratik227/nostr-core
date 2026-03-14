@@ -89,18 +89,27 @@ Monitor wallet activity and analyze transaction history. Covers:
 
 ### `/nostr-primitives` - Nostr Protocol Building Blocks
 
-Low-level Nostr primitives for custom application development. Covers:
+Comprehensive Nostr protocol toolkit (28 NIPs) for custom application development. Covers:
 
-- Key generation and management
+- Key generation, management, and BIP-39 mnemonic derivation (NIP-06)
 - Event creation, signing, and verification
 - Unified `Signer` interface (`createSecretKeySigner`, `Nip07Signer`, `NostrConnect`)
 - Browser extension signing (NIP-07) via `window.nostr`
 - Remote signing (NIP-46) via Nostr Connect
-- Relay connections (single + pool)
+- Relay connections (single + pool), relay info (NIP-11), relay auth (NIP-42)
 - NIP-04 and NIP-44 encryption
 - NIP-59 gift wrapping (multi-layer metadata protection)
+- NIP-65 relay list metadata (user relay preferences for read/write routing)
 - NIP-17 private direct messages (end-to-end encrypted DMs)
-- NIP-19 bech32 encoding/decoding
+- NIP-19 bech32 encoding/decoding, NIP-21 nostr: URI scheme
+- DNS-based verification (NIP-05)
+- Event deletion (NIP-09), reactions (NIP-25), threads (NIP-10)
+- Comments (NIP-22), long-form content (NIP-23), extra metadata (NIP-24)
+- Text note references (NIP-27), custom emoji (NIP-30), alt tags (NIP-31)
+- Lists with encrypted private items (NIP-51)
+- Lightning zaps (NIP-57), badges (NIP-58)
+- Relay-based groups (NIP-29)
+- HTTP authentication (NIP-98)
 - Event filtering and matching
 - NWC protocol internals
 
@@ -108,11 +117,25 @@ Low-level Nostr primitives for custom application development. Covers:
 /nostr-primitives keys
 /nostr-primitives encryption
 /nostr-primitives giftwrap
+/nostr-primitives relaylist
 /nostr-primitives dm
 /nostr-primitives relays
 /nostr-primitives signer
 /nostr-primitives nip07
 /nostr-primitives nip46
+/nostr-primitives deletion
+/nostr-primitives threads
+/nostr-primitives reactions
+/nostr-primitives comments
+/nostr-primitives articles
+/nostr-primitives lists
+/nostr-primitives zaps
+/nostr-primitives badges
+/nostr-primitives groups
+/nostr-primitives dns
+/nostr-primitives auth
+/nostr-primitives emoji
+/nostr-primitives uri
 ```
 
 ## How Skills Work

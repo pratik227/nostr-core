@@ -1,8 +1,8 @@
 # nostr-core
 
-> Dead-simple, vendor-neutral Nostr client library for JavaScript/TypeScript. Control any Lightning wallet via NIP-47, sign events with browser extensions (NIP-07) or remote signers (NIP-46), and send private encrypted messages (NIP-17/NIP-59).
+> Comprehensive Nostr protocol toolkit and NWC client for JavaScript/TypeScript. 28 NIPs implemented: wallet operations (NIP-47), signing (NIP-07, NIP-46), encryption (NIP-04, NIP-44), relay management (NIP-11, NIP-42, NIP-65), social features (NIP-09, NIP-10, NIP-22, NIP-25, NIP-27, NIP-30, NIP-31), content (NIP-23, NIP-24, NIP-51), identity (NIP-05, NIP-06, NIP-19, NIP-21), messaging (NIP-17, NIP-59), payments (NIP-57, NIP-98), groups (NIP-29), and badges (NIP-58).
 
-nostr-core lets agents and applications pay invoices, check balances, create invoices, and listen for payments through any NWC-compatible Lightning wallet. Beyond wallet operations, it provides a unified Signer interface for secret keys, browser extensions, and remote signers, plus gift wrapping (NIP-59) for metadata protection and private direct messages (NIP-17). One connection string, zero framework dependencies, auto-encryption. Works in Node.js 18+, Deno, Bun, and Cloudflare Workers. Free and open source (MIT).
+nostr-core lets agents and applications pay invoices, check balances, create invoices, and listen for payments through any NWC-compatible Lightning wallet. Beyond wallet operations, it provides a unified Signer interface, comprehensive NIP implementations for social interactions, content publishing, identity verification, group messaging, badges, zaps, and more. One connection string, zero framework dependencies, auto-encryption. Works in Node.js 18+, Deno, Bun, and Cloudflare Workers. Free and open source (MIT).
 
 ## Guides
 
@@ -29,12 +29,32 @@ nostr-core lets agents and applications pay invoices, check balances, create inv
 - [Filter](api/filter.md): Event filtering types and match functions
 - [Signer](api/signer.md): Unified Signer interface for secret keys, browser extensions (NIP-07), and remote signers (NIP-46)
 - [NIP-04](api/nip04.md): AES-256-CBC encryption (legacy)
+- [NIP-05](api/nip05.md): DNS-based verification (queryNip05, verifyNip05, parseNip05Address)
+- [NIP-06](api/nip06.md): Key derivation from mnemonic (generateMnemonic, mnemonicToKey, deriveKey)
 - [NIP-07](api/nip07.md): Browser extension signing via window.nostr (Nip07Signer)
-- [NIP-44](api/nip44.md): ChaCha20 authenticated encryption (recommended)
-- [NIP-19](api/nip19.md): Bech32 encoding/decoding (npub, nsec, note, nprofile, nevent, naddr)
-- [NIP-46](api/nip46.md): Remote signing via Nostr Connect (NostrConnect class)
-- [NIP-59](api/nip59.md): Gift Wrap - multi-layer event encryption for metadata protection (createRumor, createSeal, createWrap, unwrap)
+- [NIP-09](api/nip09.md): Event deletion (createDeletionEvent, parseDeletion, isDeletionOf)
+- [NIP-10](api/nip10.md): Text note threads (parseThread, buildThreadTags)
+- [NIP-11](api/nip11.md): Relay information document (fetchRelayInfo, supportsNip)
 - [NIP-17](api/nip17.md): Private Direct Messages - end-to-end encrypted DMs with sender anonymity (wrapDirectMessage, unwrapDirectMessage)
+- [NIP-19](api/nip19.md): Bech32 encoding/decoding (npub, nsec, note, nprofile, nevent, naddr)
+- [NIP-21](api/nip21.md): nostr: URI scheme (encodeNostrURI, decodeNostrURI, isNostrURI)
+- [NIP-22](api/nip22.md): Comments (createCommentEvent, parseComment)
+- [NIP-23](api/nip23.md): Long-form content (createLongFormEvent, parseLongForm)
+- [NIP-24](api/nip24.md): Extra metadata fields (parseExtendedMetadata, buildMetadataContent, parseUniversalTags)
+- [NIP-25](api/nip25.md): Reactions (createReactionEvent, parseReaction)
+- [NIP-27](api/nip27.md): Text note references (extractReferences, replaceReferences)
+- [NIP-29](api/nip29.md): Relay-based groups (createGroupChatEvent, parseGroupMetadata, parseGroupMembers)
+- [NIP-30](api/nip30.md): Custom emoji (parseCustomEmojis, buildEmojiTags, extractEmojiShortcodes)
+- [NIP-31](api/nip31.md): Unknown event kinds (addAltTag, getAltTag)
+- [NIP-42](api/nip42.md): Client authentication to relays (createAuthEvent, verifyAuthEvent, relay.auth)
+- [NIP-44](api/nip44.md): ChaCha20 authenticated encryption (recommended)
+- [NIP-46](api/nip46.md): Remote signing via Nostr Connect (NostrConnect class)
+- [NIP-51](api/nip51.md): Lists with encrypted private items (createListEvent, parseList)
+- [NIP-57](api/nip57.md): Lightning zaps (createZapRequestEvent, parseZapReceipt, validateZapReceipt, fetchZapInvoice)
+- [NIP-58](api/nip58.md): Badges (createBadgeDefinitionEvent, createBadgeAwardEvent, parseBadgeDefinition)
+- [NIP-59](api/nip59.md): Gift Wrap - multi-layer event encryption for metadata protection (createRumor, createSeal, createWrap, unwrap)
+- [NIP-65](api/nip65.md): Relay List Metadata - user relay preferences for read/write routing (parseRelayList, createRelayListEvent, getReadRelays, getWriteRelays)
+- [NIP-98](api/nip98.md): HTTP Auth (createHttpAuthEvent, getAuthorizationHeader, verifyHttpAuthEvent)
 - [Utils](api/utils.md): normalizeURL, bytesToHex, hexToBytes, randomBytes
 
 ## Agent Integration
