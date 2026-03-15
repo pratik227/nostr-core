@@ -207,11 +207,12 @@ With 81% fewer dependencies, `nostr-core` still implements every NIP-47 method.
 - **Messaging**: `nip17`/`nip59` (private DMs), `nip28` (public chat channels)
 - **Discovery**: `nip50` (search), `nip51` (lists), `nip56` (reporting), `nip58` (badges)
 - **Utility**: `nip13` (proof of work), `nip40` (expiration), `nip48` (proxy tags), `nip57` (zaps)
+- **LNURL**: `lnurl` (LUD-01/03/06/09/10/12/17/18/20/21 — pay requests, withdraw requests, success actions, payer identity)
 - **Filtering**: `matchFilter`, `matchFilters`
 
-## Lightning Address Support
+## Lightning Address & LNURL Protocol
 
-`nostr-core` natively resolves Lightning Addresses via LNURL-pay - no extra dependencies needed:
+`nostr-core` natively resolves Lightning Addresses via LNURL-pay and includes full LNURL protocol support (10 LUDs) - no extra dependencies needed:
 
 ```ts
 // One-liner: resolve address + pay the invoice
@@ -220,9 +221,30 @@ const { preimage, invoice } = await nwc.payLightningAddress('hello@getalby.com',
 // Or resolve separately without paying
 import { fetchInvoice } from 'nostr-core'
 const { invoice, metadata } = await fetchInvoice('hello@getalby.com', 100)
+
+// Full LNURL protocol support
+import { lnurl } from 'nostr-core'
+
+// Encode/decode LNURL bech32 strings (LUD-01)
+const encoded = lnurl.encodeLnurl('https://service.com/api')
+const url = lnurl.decodeLnurl(encoded)
+
+// Pay requests with comments and payer identity (LUD-06/12/18)
+const payReq = await lnurl.fetchPayRequest(encoded)
+const { pr, successAction } = await lnurl.requestInvoice(payReq, 10000, {
+  comment: 'Great work!',
+  payerData: { name: 'Alice' },
+})
+
+// Withdraw requests (LUD-03)
+const withdraw = await lnurl.fetchWithdrawRequest('lnurlw://...')
+await lnurl.submitWithdrawRequest(withdraw, myInvoice)
+
+// Verify payments (LUD-21)
+const status = await lnurl.verifyPayment(verifyUrl)
 ```
 
-This eliminates the need for `@getalby/lightning-tools` or any external LNURL library.
+This eliminates the need for `@getalby/lightning-tools` or any external LNURL library. nostr-core covers LUD-01, 03, 06, 09, 10, 12, 17, 18, 20, and 21 out of the box.
 
 ## Fiat Currency Conversion
 

@@ -45,6 +45,7 @@ Beyond the NWC client, nostr-core exports a comprehensive set of Nostr protocol 
 | **Groups** | `nip29` | Relay-based group chat |
 | **Auth** | `nip42`, `nip46`, `nip98` | Relay auth, remote signing, HTTP auth |
 | **Utility** | `nip13`, `nip40`, `nip48`, `nip57` | Proof of work, expiration, proxy tags, zaps |
+| **LNURL** | `lnurl` | Pay requests, withdraw requests, bech32 encoding, success actions (LUD-01/03/06/09/10/12/17/18/20/21) |
 | **Filtering** | `Filter` / `matchFilter` | Event filtering |
 
 These are the same primitives used internally by the NWC client, exposed so you can build complete Nostr applications without pulling in another library.

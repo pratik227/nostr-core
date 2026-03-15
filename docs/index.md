@@ -84,7 +84,7 @@ nwc.close()
 
 ## How does nostr-core compare?
 
-82% fewer packages, 26% smaller install, zero vendor lock-in.
+37 NIPs, full LNURL protocol, 82% fewer packages, zero vendor lock-in.
 
 [See the full comparison →](/guide/comparison)
 
