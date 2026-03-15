@@ -194,18 +194,25 @@ With 81% fewer dependencies, `nostr-core` still implements every NIP-47 method.
 
 ## Low-Level Building Blocks
 
-`nostr-core` exports its internals so you don't need a separate `nostr-tools` install:
+`nostr-core` exports **37 NIP implementations** so you don't need a separate `nostr-tools` install:
 
-- Key management: `generateSecretKey`, `getPublicKey`
-- Events: `finalizeEvent`, `verifyEvent`, `getEventHash`
-- Relay connections: `Relay`, `RelayPool`
-- Encryption: `nip04`, `nip44`
-- Encoding: `nip19` (bech32)
-- Filtering: `matchFilter`, `matchFilters`
+- **Keys**: `generateSecretKey`, `getPublicKey`, `nip06` (BIP-39 mnemonic derivation)
+- **Events**: `finalizeEvent`, `verifyEvent`, `getEventHash`
+- **Relay**: `Relay`, `RelayPool`, `nip11` (relay info), `nip42` (auth), `nip65` (relay lists)
+- **Encryption**: `nip04`, `nip44`
+- **Encoding**: `nip19` (bech32), `nip21` (nostr: URIs)
+- **Identity**: `nip02` (follow lists), `nip05` (DNS identifiers), `nip07` (browser signer), `nip24` (metadata)
+- **Social**: `nip09` (deletion), `nip10` (threads), `nip22` (comments), `nip25` (reactions), `nip18` (reposts)
+- **Content**: `nip23` (long-form), `nip27` (references), `nip30` (emoji), `nip31` (alt tags), `nip36` (content warnings)
+- **Messaging**: `nip17`/`nip59` (private DMs), `nip28` (public chat channels)
+- **Discovery**: `nip50` (search), `nip51` (lists), `nip56` (reporting), `nip58` (badges)
+- **Utility**: `nip13` (proof of work), `nip40` (expiration), `nip48` (proxy tags), `nip57` (zaps)
+- **LNURL**: `lnurl` (LUD-01/03/06/09/10/12/17/18/20/21 — pay requests, withdraw requests, success actions, payer identity)
+- **Filtering**: `matchFilter`, `matchFilters`
 
-## Lightning Address Support
+## Lightning Address & LNURL Protocol
 
-`nostr-core` natively resolves Lightning Addresses via LNURL-pay - no extra dependencies needed:
+`nostr-core` natively resolves Lightning Addresses via LNURL-pay and includes full LNURL protocol support (10 LUDs) - no extra dependencies needed:
 
 ```ts
 // One-liner: resolve address + pay the invoice
@@ -214,9 +221,30 @@ const { preimage, invoice } = await nwc.payLightningAddress('hello@getalby.com',
 // Or resolve separately without paying
 import { fetchInvoice } from 'nostr-core'
 const { invoice, metadata } = await fetchInvoice('hello@getalby.com', 100)
+
+// Full LNURL protocol support
+import { lnurl } from 'nostr-core'
+
+// Encode/decode LNURL bech32 strings (LUD-01)
+const encoded = lnurl.encodeLnurl('https://service.com/api')
+const url = lnurl.decodeLnurl(encoded)
+
+// Pay requests with comments and payer identity (LUD-06/12/18)
+const payReq = await lnurl.fetchPayRequest(encoded)
+const { pr, successAction } = await lnurl.requestInvoice(payReq, 10000, {
+  comment: 'Great work!',
+  payerData: { name: 'Alice' },
+})
+
+// Withdraw requests (LUD-03)
+const withdraw = await lnurl.fetchWithdrawRequest('lnurlw://...')
+await lnurl.submitWithdrawRequest(withdraw, myInvoice)
+
+// Verify payments (LUD-21)
+const status = await lnurl.verifyPayment(verifyUrl)
 ```
 
-This eliminates the need for `@getalby/lightning-tools` or any external LNURL library.
+This eliminates the need for `@getalby/lightning-tools` or any external LNURL library. nostr-core covers LUD-01, 03, 06, 09, 10, 12, 17, 18, 20, and 21 out of the box.
 
 ## Fiat Currency Conversion
 

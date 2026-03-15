@@ -1,7 +1,7 @@
 {
   "name": "nostr-core",
-  "version": "0.4.0",
-  "description": "Dead-simple, vendor-neutral NWC (Nostr Wallet Connect) client",
+  "version": "0.6.0",
+  "description": "Comprehensive Nostr protocol toolkit and NWC (Nostr Wallet Connect) client",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -31,7 +31,9 @@
     "@noble/ciphers": "^1.2.0",
     "@noble/curves": "^1.8.0",
     "@noble/hashes": "^1.7.0",
-    "@scure/base": "^1.2.0"
+    "@scure/base": "^1.2.0",
+    "@scure/bip32": "^2.0.1",
+    "@scure/bip39": "^2.0.1"
   },
   "devDependencies": {
     "typescript": "^5.7.0",
@@ -44,6 +46,33 @@
     "wallet-connect",
     "lightning",
     "bitcoin",
-    "nip-47"
+    "nip-04",
+    "nip-05",
+    "nip-06",
+    "nip-07",
+    "nip-09",
+    "nip-10",
+    "nip-11",
+    "nip-17",
+    "nip-19",
+    "nip-21",
+    "nip-22",
+    "nip-23",
+    "nip-24",
+    "nip-25",
+    "nip-27",
+    "nip-29",
+    "nip-30",
+    "nip-31",
+    "nip-42",
+    "nip-44",
+    "nip-46",
+    "nip-47",
+    "nip-51",
+    "nip-57",
+    "nip-58",
+    "nip-59",
+    "nip-65",
+    "nip-98"
   ]
 }

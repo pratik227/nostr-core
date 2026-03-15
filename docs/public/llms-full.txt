@@ -1,8 +1,8 @@
 # nostr-core - Full Documentation
 
-> Dead-simple, vendor-neutral Nostr client library for JavaScript and TypeScript. Control any Lightning wallet via NIP-47, sign events with browser extensions (NIP-07) or remote signers (NIP-46), and send private encrypted messages (NIP-17/NIP-59).
+> Dead-simple, vendor-neutral Nostr client library for JavaScript and TypeScript. Control any Lightning wallet via NIP-47, sign events with browser extensions (NIP-07) or remote signers (NIP-46), discover user relays (NIP-65), and send private encrypted messages (NIP-17/NIP-59).
 
-nostr-core is a lightweight library for interacting with Bitcoin Lightning wallets over the Nostr network using the NIP-47 protocol, with a unified Signer interface for secret keys, browser extensions (NIP-07), and remote signers (NIP-46), plus gift wrapping (NIP-59) and private direct messages (NIP-17). Pass in a connection string, and start making payments, creating invoices, and listening for real-time notifications.
+nostr-core is a lightweight library for interacting with Bitcoin Lightning wallets over the Nostr network using the NIP-47 protocol, with a unified Signer interface for secret keys, browser extensions (NIP-07), and remote signers (NIP-46), relay list metadata (NIP-65), gift wrapping (NIP-59), and private direct messages (NIP-17). Pass in a connection string, and start making payments, creating invoices, and listening for real-time notifications.
 
 ---
 
@@ -45,6 +45,7 @@ Beyond the NWC client, nostr-core also exports the low-level building blocks:
 | `nip04` | AES-256-CBC encryption (legacy) |
 | `nip44` | ChaCha20-Poly1305 encryption (recommended) |
 | `nip59` | Gift wrapping - multi-layer event encryption for metadata protection |
+| `nip65` | Relay list metadata - user relay preferences for read/write routing |
 | `nip17` | Private direct messages - end-to-end encrypted DMs with sender anonymity |
 | `nip19` | Bech32 encoding/decoding (npub, nsec, note, nprofile, nevent, naddr) |
 | `finalizeEvent` / `verifyEvent` | Event signing and verification |
@@ -1808,6 +1809,959 @@ Tests whether an event matches **any** filter (logical OR).
 
 ---
 
+# API Reference: NIP-02
+
+Follow List (Contact List) - kind 3 events storing a user's follow list with `p` tags.
+
+## Import
+```ts
+import { nip02 } from 'nostr-core'
+```
+
+## nip02.createFollowListEvent
+```ts
+function createFollowListEvent(contacts: ContactEntry[], secretKey: Uint8Array): NostrEvent
+```
+Creates and signs a kind 3 follow list event. ContactEntry: `{ pubkey, relay?, petname? }`.
+
+## nip02.parseFollowList
+```ts
+function parseFollowList(event: NostrEvent): ContactEntry[]
+```
+Parses a kind 3 event into contact entries.
+
+## nip02.isFollowing / getFollowedPubkeys
+```ts
+function isFollowing(event: NostrEvent, pubkey: string): boolean
+function getFollowedPubkeys(event: NostrEvent): string[]
+```
+
+---
+
+# API Reference: NIP-05
+
+DNS-Based Verification - verify Nostr identities via `https://<domain>/.well-known/nostr.json`.
+
+## Import
+
+```ts
+import { nip05 } from 'nostr-core'
+```
+
+## nip05.parseNip05Address
+
+```ts
+function parseNip05Address(address: string): { name: string; domain: string }
+```
+
+Parse a NIP-05 address into name and domain. Throws `Nip05Error` if invalid.
+
+## nip05.queryNip05
+
+```ts
+async function queryNip05(address: string): Promise<Nip05Result>
+```
+
+Query a NIP-05 address and return `{ pubkey: string, relays?: string[] }`.
+
+## nip05.verifyNip05
+
+```ts
+async function verifyNip05(address: string, expectedPubkey: string): Promise<boolean>
+```
+
+Verify a NIP-05 address resolves to the expected pubkey.
+
+---
+
+# API Reference: NIP-06
+
+Key Derivation from BIP-39 Mnemonic. Path: `m/44'/1237'/<account>'/0/0`.
+
+## Import
+
+```ts
+import { nip06 } from 'nostr-core'
+```
+
+## nip06.generateMnemonic
+
+```ts
+function generateMnemonic(wordCount?: 12 | 24): string
+```
+
+## nip06.validateMnemonic
+
+```ts
+function validateMnemonic(mnemonic: string): boolean
+```
+
+## nip06.mnemonicToKey
+
+```ts
+function mnemonicToKey(mnemonic: string, accountIndex?: number, passphrase?: string): DerivedKey
+```
+
+Returns `{ secretKey: Uint8Array, publicKey: string }`.
+
+## nip06.deriveKey
+
+```ts
+function deriveKey(seed: Uint8Array, accountIndex?: number): DerivedKey
+```
+
+## nip06.getDerivationPath
+
+```ts
+function getDerivationPath(accountIndex: number): string
+```
+
+Returns `m/44'/1237'/<accountIndex>'/0/0`.
+
+---
+
+# API Reference: NIP-09
+
+Event Deletion - kind 5 events requesting deletion of previously published events.
+
+## Import
+
+```ts
+import { nip09 } from 'nostr-core'
+```
+
+## nip09.createDeletionEventTemplate / createDeletionEvent
+
+```ts
+function createDeletionEventTemplate(request: DeletionRequest): EventTemplate
+function createDeletionEvent(request: DeletionRequest, secretKey: Uint8Array): NostrEvent
+```
+
+`DeletionRequest = { targets: DeletionTarget[], reason?: string }`
+`DeletionTarget = { type: 'event', id: string } | { type: 'address', address: string }`
+
+## nip09.parseDeletion
+
+```ts
+function parseDeletion(event: NostrEvent): { eventIds: string[], addresses: string[], kinds: number[], reason: string }
+```
+
+## nip09.isDeletionOf
+
+```ts
+function isDeletionOf(deletion: NostrEvent, target: NostrEvent): boolean
+```
+
+Checks kind, pubkey match, and e-tag presence.
+
+---
+
+# API Reference: NIP-10
+
+Text Note Threads - parse and build thread references for reply events.
+
+## Import
+
+```ts
+import { nip10 } from 'nostr-core'
+```
+
+## nip10.parseThread
+
+```ts
+function parseThread(event: NostrEvent): ThreadReference
+```
+
+`ThreadReference = { root?: { id, relay? }, reply?: { id, relay? }, mentions: [...], profiles: string[] }`
+
+Handles both marker-based and deprecated positional formats.
+
+## nip10.buildThreadTags
+
+```ts
+function buildThreadTags(opts: { root?, reply?, mentions?, profiles? }): string[][]
+```
+
+---
+
+# API Reference: NIP-11
+
+Relay Information Document - fetch relay metadata via HTTP.
+
+## Import
+
+```ts
+import { nip11 } from 'nostr-core'
+```
+
+## nip11.fetchRelayInfo
+
+```ts
+async function fetchRelayInfo(relayUrl: string): Promise<RelayInfo>
+```
+
+Converts `wss://` to `https://`, fetches with `Accept: application/nostr+json`.
+
+## nip11.supportsNip
+
+```ts
+function supportsNip(info: RelayInfo, nip: number): boolean
+```
+
+---
+
+# API Reference: NIP-13
+
+Proof of Work - leading zero bits in event IDs for spam deterrence.
+
+## Import
+```ts
+import { nip13 } from 'nostr-core'
+```
+
+## nip13.minePow
+```ts
+function minePow(template: EventTemplate, targetDifficulty: number): EventTemplate
+```
+Mines PoW by incrementing a nonce tag. CPU-intensive for high difficulties.
+
+## nip13.verifyPow
+```ts
+function verifyPow(event: NostrEvent, minDifficulty: number): boolean
+```
+Verifies both actual difficulty and committed target difficulty.
+
+## nip13.getPowDifficulty / getTargetDifficulty / countLeadingZeroBits
+```ts
+function getPowDifficulty(event: NostrEvent): number
+function getTargetDifficulty(event: NostrEvent | EventTemplate): number
+function countLeadingZeroBits(hex: string): number
+```
+
+---
+
+# API Reference: NIP-18
+
+Reposts - kind 6 for text note reposts, kind 16 for generic reposts.
+
+## Import
+```ts
+import { nip18 } from 'nostr-core'
+```
+
+## nip18.createRepostEvent
+```ts
+function createRepostEvent(target: RepostTarget, secretKey: Uint8Array, originalEvent?: NostrEvent): NostrEvent
+```
+RepostTarget: `{ id, pubkey, relay?, kind? }`. Kind 6 for text notes, kind 16 for other kinds. Embeds original event JSON in content.
+
+## nip18.parseRepost
+```ts
+function parseRepost(event: NostrEvent): { targetEventId?; targetPubkey?; targetRelay?; targetKind?; embeddedEvent? }
+```
+
+---
+
+# API Reference: NIP-21
+
+nostr: URI Scheme - encode/decode `nostr:` URIs.
+
+## Import
+
+```ts
+import { nip21 } from 'nostr-core'
+```
+
+## nip21.encodeNostrURI
+
+```ts
+function encodeNostrURI(nip19Entity: string): string  // prepends "nostr:"
+```
+
+## nip21.decodeNostrURI
+
+```ts
+function decodeNostrURI(uri: string): DecodedResult  // strips "nostr:" and decodes
+```
+
+## nip21.isNostrURI
+
+```ts
+function isNostrURI(str: string): boolean
+```
+
+---
+
+# API Reference: NIP-22
+
+Comments - kind 1111 events for commenting on any content type.
+
+## Import
+
+```ts
+import { nip22 } from 'nostr-core'
+```
+
+## nip22.createCommentEventTemplate / createCommentEvent
+
+```ts
+function createCommentEventTemplate(content: string, scope: CommentScope): EventTemplate
+function createCommentEvent(content: string, scope: CommentScope, secretKey: Uint8Array): NostrEvent
+```
+
+`CommentScope = { rootType: 'event'|'address'|'external', rootId, rootKind?, rootPubkey?, parentType?, parentId?, parentKind?, parentPubkey? }`
+
+## nip22.parseComment
+
+```ts
+function parseComment(event: NostrEvent): CommentScope & { content: string }
+```
+
+---
+
+# API Reference: NIP-23
+
+Long-form Content - kind 30023 articles and kind 30024 drafts.
+
+## Import
+
+```ts
+import { nip23 } from 'nostr-core'
+```
+
+## nip23.createLongFormEventTemplate / createLongFormEvent
+
+```ts
+function createLongFormEventTemplate(article: LongFormContent): EventTemplate
+function createLongFormEvent(article: LongFormContent, secretKey: Uint8Array): NostrEvent
+```
+
+`LongFormContent = { identifier, title?, image?, summary?, publishedAt?, hashtags?, content, isDraft? }`
+
+## nip23.parseLongForm
+
+```ts
+function parseLongForm(event: NostrEvent): LongFormContent
+```
+
+---
+
+# API Reference: NIP-24
+
+Extra Metadata Fields and Universal Tags.
+
+## Import
+
+```ts
+import { nip24 } from 'nostr-core'
+```
+
+## nip24.parseExtendedMetadata
+
+```ts
+function parseExtendedMetadata(event: NostrEvent): ExtendedMetadata
+```
+
+`ExtendedMetadata = { display_name?, website?, banner?, bot?, birthday?, [key: string]: unknown }`
+
+## nip24.buildMetadataContent
+
+```ts
+function buildMetadataContent(metadata: ExtendedMetadata): string
+```
+
+## nip24.parseUniversalTags / buildUniversalTags
+
+```ts
+function parseUniversalTags(event: NostrEvent): UniversalTags
+function buildUniversalTags(tags: UniversalTags): string[][]
+```
+
+`UniversalTags = { references?: string[], hashtags?: string[], title?: string }`
+
+---
+
+# API Reference: NIP-25
+
+Reactions - kind 7 reaction events.
+
+## Import
+
+```ts
+import { nip25 } from 'nostr-core'
+```
+
+## nip25.createReactionEventTemplate / createReactionEvent
+
+```ts
+function createReactionEventTemplate(reaction: Reaction): EventTemplate
+function createReactionEvent(reaction: Reaction, secretKey: Uint8Array): NostrEvent
+```
+
+`Reaction = { targetEvent?: { id, pubkey, kind? }, targetAddress?, content }`
+
+## nip25.parseReaction
+
+```ts
+function parseReaction(event: NostrEvent): { targetEventId?, targetPubkey?, content, isPositive, isNegative, emoji? }
+```
+
+---
+
+# API Reference: NIP-27
+
+Text Note References - extract and replace `nostr:` mentions in content.
+
+## Import
+
+```ts
+import { nip27 } from 'nostr-core'
+```
+
+## nip27.extractReferences
+
+```ts
+function extractReferences(content: string): ContentReference[]
+```
+
+`ContentReference = { uri, decoded: DecodedResult, start, end }`
+
+## nip27.replaceReferences
+
+```ts
+function replaceReferences(content: string, replacer: (ref: ContentReference) => string): string
+```
+
+---
+
+# API Reference: NIP-28
+
+Public Chat - channel-based public chat (kinds 40-44).
+
+## Import
+```ts
+import { nip28 } from 'nostr-core'
+```
+
+## nip28.createChannelEvent
+```ts
+function createChannelEvent(metadata: ChannelMetadata, secretKey: Uint8Array): NostrEvent
+```
+Creates kind 40 channel. ChannelMetadata: `{ name, about?, picture? }`. The event ID becomes the channel ID.
+
+## nip28.createChannelMessageEvent
+```ts
+function createChannelMessageEvent(channelId: string, content: string, secretKey: Uint8Array, recommendedRelay?: string, replyTo?: string): NostrEvent
+```
+Creates kind 42 channel message with optional reply.
+
+## nip28.parseChannelMetadata / parseChannelMessage
+```ts
+function parseChannelMetadata(event: NostrEvent): ChannelMetadata
+function parseChannelMessage(event: NostrEvent): { channelId?; content; replyTo? }
+```
+
+Also: `createChannelMetadataEvent` (kind 41), `createChannelHideMessageEventTemplate` (kind 43), `createChannelMuteUserEventTemplate` (kind 44).
+
+---
+
+# API Reference: NIP-29
+
+Relay-based Groups - group chat messages and admin actions.
+
+## Import
+
+```ts
+import { nip29 } from 'nostr-core'
+```
+
+## nip29.createGroupChatTemplate / createGroupChatEvent
+
+```ts
+function createGroupChatTemplate(groupId: string, content: string, replyTo?: string): EventTemplate
+function createGroupChatEvent(groupId, content, secretKey, replyTo?): NostrEvent
+```
+
+## nip29.createGroupAdminTemplate
+
+```ts
+function createGroupAdminTemplate(groupId: string, action: GroupAdminAction): EventTemplate
+```
+
+`GroupAdminAction = { type: 'add-user'|'remove-user'|'edit-metadata'|'delete-event'|'add-permission'|'remove-permission', ... }`
+
+## nip29.parseGroupMetadata / parseGroupMembers / parseGroupAdmins
+
+```ts
+function parseGroupMetadata(event: NostrEvent): GroupMetadata
+function parseGroupMembers(event: NostrEvent): string[]
+function parseGroupAdmins(event: NostrEvent): Array<{ pubkey, permissions: string[] }>
+```
+
+---
+
+# API Reference: NIP-30
+
+Custom Emoji - parse and build emoji tags.
+
+## Import
+
+```ts
+import { nip30 } from 'nostr-core'
+```
+
+## nip30.parseCustomEmojis
+
+```ts
+function parseCustomEmojis(event: NostrEvent): CustomEmoji[]
+```
+
+`CustomEmoji = { shortcode: string, url: string }`
+
+## nip30.buildEmojiTags
+
+```ts
+function buildEmojiTags(emojis: CustomEmoji[]): string[][]
+```
+
+## nip30.extractEmojiShortcodes
+
+```ts
+function extractEmojiShortcodes(content: string): string[]
+```
+
+---
+
+# API Reference: NIP-31
+
+Unknown Event Kinds - alt tag for backward compatibility.
+
+## Import
+
+```ts
+import { nip31 } from 'nostr-core'
+```
+
+## nip31.addAltTag
+
+```ts
+function addAltTag(tags: string[][], description: string): string[][]
+```
+
+## nip31.getAltTag
+
+```ts
+function getAltTag(event: NostrEvent): string | undefined
+```
+
+---
+
+# API Reference: NIP-36
+
+Sensitive Content / Content Warning - `content-warning` tag for flagging sensitive events.
+
+## Import
+```ts
+import { nip36 } from 'nostr-core'
+```
+
+## Functions
+```ts
+function addContentWarning(tags: string[][], reason?: string): string[][]
+function getContentWarning(event: NostrEvent | EventTemplate): string | undefined
+function hasContentWarning(event: NostrEvent | EventTemplate): boolean
+```
+
+---
+
+# API Reference: NIP-40
+
+Expiration Timestamp - `expiration` tag for time-limited events.
+
+## Import
+```ts
+import { nip40 } from 'nostr-core'
+```
+
+## Functions
+```ts
+function addExpiration(tags: string[][], expiration: number): string[][]
+function getExpiration(event: NostrEvent | EventTemplate): number | undefined
+function isExpired(event: NostrEvent | EventTemplate, now?: number): boolean
+```
+
+---
+
+# API Reference: NIP-42
+
+Client Authentication to Relays - kind 22242 auth events.
+
+## Import
+
+```ts
+import { nip42 } from 'nostr-core'
+```
+
+## nip42.createAuthEventTemplate / createAuthEvent
+
+```ts
+function createAuthEventTemplate(opts: { relay: string, challenge: string }): EventTemplate
+function createAuthEvent(opts: { relay: string, challenge: string }, secretKey: Uint8Array): NostrEvent
+```
+
+## nip42.verifyAuthEvent
+
+```ts
+function verifyAuthEvent(event: NostrEvent, challenge: string, relayUrl: string): boolean
+```
+
+## Relay.onauth / Relay.auth
+
+```ts
+relay.onauth = (challenge: string) => void  // callback for AUTH messages
+relay.auth(event: NostrEvent): Promise<string>  // send AUTH response
+```
+
+---
+
+# API Reference: NIP-48
+
+Proxy Tags - marks events bridged from other protocols.
+
+## Import
+```ts
+import { nip48 } from 'nostr-core'
+```
+
+## Functions
+```ts
+function addProxyTag(tags: string[][], id: string, protocol: ProxyProtocol): string[][]
+function getProxyTags(event: NostrEvent | EventTemplate): ProxyTag[]
+function isProxied(event: NostrEvent | EventTemplate): boolean
+function getProxyByProtocol(event: NostrEvent | EventTemplate, protocol: ProxyProtocol): ProxyTag | undefined
+```
+ProxyProtocol: `'activitypub' | 'atproto' | 'rss' | 'web' | string`. ProxyTag: `{ id, protocol }`.
+
+---
+
+# API Reference: NIP-50
+
+Search - extends Nostr filters with a `search` field for full-text search.
+
+## Import
+```ts
+import { nip50 } from 'nostr-core'
+```
+
+## Functions
+```ts
+function buildSearchFilter(query: string, filter?: Filter): SearchFilter
+function parseSearchQuery(query: string): { text: string; modifiers: Record<string, string> }
+function buildSearchQuery(text: string, modifiers?: Record<string, string>): string
+```
+
+---
+
+# API Reference: NIP-51
+
+Lists - kind 10000-10102, 30000+ with NIP-44 encrypted private items.
+
+## Import
+
+```ts
+import { nip51 } from 'nostr-core'
+```
+
+## nip51.createListEventTemplate / createListEvent
+
+```ts
+function createListEventTemplate(opts: { kind, identifier?, publicItems, privateItems?, secretKey? }): EventTemplate
+function createListEvent(opts: { kind, identifier?, publicItems, privateItems? }, secretKey: Uint8Array): NostrEvent
+```
+
+`ListItem = { tag: string, value: string, extra?: string[] }`
+
+## nip51.parseList
+
+```ts
+function parseList(event: NostrEvent, secretKey?: Uint8Array): ParsedList
+```
+
+`ParsedList = { kind, identifier?, publicItems: ListItem[], privateItems: ListItem[] }`
+
+## Helpers
+
+```ts
+function getEventIds(list: ParsedList): string[]
+function getPubkeys(list: ParsedList): string[]
+function getHashtags(list: ParsedList): string[]
+function getRelayUrls(list: ParsedList): string[]
+function getAddresses(list: ParsedList): string[]
+```
+
+---
+
+# API Reference: NIP-56
+
+Reporting - kind 1984 events for reporting objectionable content or users.
+
+## Import
+```ts
+import { nip56 } from 'nostr-core'
+```
+
+## nip56.createReportEvent
+```ts
+function createReportEvent(targets: ReportTarget[], secretKey: Uint8Array, content?: string): NostrEvent
+```
+ReportTarget: `{ type: 'pubkey'; pubkey; reportType }` or `{ type: 'event'; eventId; authorPubkey; reportType }`.
+ReportType: `'nudity' | 'malware' | 'profanity' | 'illegal' | 'spam' | 'impersonation' | 'other'`.
+
+## nip56.parseReport
+```ts
+function parseReport(event: NostrEvent): { targets: ReportTarget[]; content: string }
+```
+
+---
+
+# API Reference: NIP-57
+
+Lightning Zaps - kind 9734 zap requests and kind 9735 zap receipts.
+
+## Import
+
+```ts
+import { nip57 } from 'nostr-core'
+```
+
+## nip57.createZapRequestEventTemplate / createZapRequestEvent
+
+```ts
+function createZapRequestEventTemplate(request: ZapRequest): EventTemplate
+function createZapRequestEvent(request: ZapRequest, secretKey: Uint8Array): NostrEvent
+```
+
+`ZapRequest = { recipientPubkey, eventId?, address?, amount, relays, content?, lnurl? }`
+
+## nip57.parseZapReceipt
+
+```ts
+function parseZapReceipt(event: NostrEvent): ZapReceipt
+```
+
+`ZapReceipt = { recipientPubkey, senderPubkey?, eventId?, amount, bolt11, description, preimage? }`
+
+## nip57.validateZapReceipt
+
+```ts
+function validateZapReceipt(receipt: NostrEvent, request?: NostrEvent): boolean
+```
+
+## nip57.fetchZapInvoice
+
+```ts
+async function fetchZapInvoice(opts: { lnurl, zapRequest: NostrEvent, amount }): Promise<string>
+```
+
+---
+
+# API Reference: NIP-58
+
+Badges - kind 30009 definitions, kind 8 awards, kind 30008 profile badges.
+
+## Import
+
+```ts
+import { nip58 } from 'nostr-core'
+```
+
+## Badge Definition (kind 30009)
+
+```ts
+function createBadgeDefinitionTemplate(badge: BadgeDefinition): EventTemplate
+function createBadgeDefinitionEvent(badge: BadgeDefinition, secretKey: Uint8Array): NostrEvent
+function parseBadgeDefinition(event: NostrEvent): BadgeDefinition
+```
+
+`BadgeDefinition = { identifier, name?, description?, image?, thumbs? }`
+
+## Badge Award (kind 8)
+
+```ts
+function createBadgeAwardTemplate(award: BadgeAward): EventTemplate
+function createBadgeAwardEvent(award: BadgeAward, secretKey: Uint8Array): NostrEvent
+function parseBadgeAward(event: NostrEvent): BadgeAward
+```
+
+`BadgeAward = { badgeAddress: string, recipients: string[] }`
+
+## Profile Badges (kind 30008)
+
+```ts
+function createProfileBadgesTemplate(badges: ProfileBadge[]): EventTemplate
+function createProfileBadgesEvent(badges: ProfileBadge[], secretKey: Uint8Array): NostrEvent
+function parseProfileBadges(event: NostrEvent): ProfileBadge[]
+```
+
+`ProfileBadge = { badgeAddress, awardEventId }`
+
+## Extended Proofs
+
+```ts
+function createBadgeRequestTemplate(request: BadgeRequest): EventTemplate
+function verifyBadgeProof(event: NostrEvent): BadgeProof | undefined
+function validateBadgeAward(award: NostrEvent, definition: NostrEvent): boolean
+```
+
+---
+
+# API Reference: NIP-98
+
+HTTP Auth - kind 27235 events for authenticating HTTP requests.
+
+## Import
+
+```ts
+import { nip98 } from 'nostr-core'
+```
+
+## nip98.createHttpAuthEventTemplate / createHttpAuthEvent
+
+```ts
+function createHttpAuthEventTemplate(opts: HttpAuthOptions): EventTemplate
+function createHttpAuthEvent(opts: HttpAuthOptions, secretKey: Uint8Array): NostrEvent
+```
+
+`HttpAuthOptions = { url: string, method: string, body?: Uint8Array | string }`
+
+## nip98.getAuthorizationHeader
+
+```ts
+function getAuthorizationHeader(event: NostrEvent): string  // "Nostr <base64>"
+```
+
+## nip98.verifyHttpAuthEvent
+
+```ts
+function verifyHttpAuthEvent(event: NostrEvent, opts: HttpAuthOptions): boolean
+```
+
+Verifies kind, signature, timestamp (within 60s), URL, method, and body payload hash.
+
+---
+
+# API Reference: LNURL Protocol
+
+LNURL Protocol - bech32-encoded HTTP query strings for Lightning Network service discovery and interaction. Implements LUD-01 (encoding), LUD-03 (withdraw), LUD-06 (pay request), LUD-09/10 (success actions), LUD-12 (comments), LUD-17 (protocol schemes), LUD-18 (payer data), LUD-20 (pay link metadata), and LUD-21 (payment verification).
+
+## Import
+
+```ts
+import { lnurl } from 'nostr-core'
+```
+
+## lnurl.encodeLnurl
+
+```ts
+function encodeLnurl(url: string): string
+```
+
+Encodes a URL into a bech32-encoded LNURL string. Returns an uppercase `LNURL1...` string.
+
+## lnurl.decodeLnurl
+
+```ts
+function decodeLnurl(lnurlString: string): string
+```
+
+Decodes a bech32-encoded LNURL string back to the original URL.
+
+## lnurl.isLnurl
+
+```ts
+function isLnurl(str: string): boolean
+```
+
+Checks if a string is a valid LNURL (case-insensitive, checks bech32 encoding).
+
+## lnurl.resolveUrl
+
+```ts
+function resolveUrl(input: string): string
+```
+
+Resolves any LNURL-compatible input (LNURL bech32, lightning address, or raw URL) to a service URL.
+
+## lnurl.fetchPayRequest
+
+```ts
+async function fetchPayRequest(lnurlOrUrl: string): Promise<LnurlPayResponse>
+```
+
+Fetches a pay request from an LNURL or URL. Returns the LNURL-pay service response.
+
+`LnurlPayResponse = { callback: string, minSendable: number, maxSendable: number, metadata: string, tag: 'payRequest', commentAllowed?: number, allowsNostr?: boolean, nostrPubkey?: string }`
+
+## lnurl.requestInvoice
+
+```ts
+async function requestInvoice(opts: { payRequest: LnurlPayResponse, amountMsats: number, comment?: string, payerData?: PayerData }): Promise<{ invoice: string, successAction?: SuccessAction }>
+```
+
+Requests an invoice from the LNURL-pay callback for a specific amount. Optional comment (LUD-12) and payer data (LUD-18).
+
+## lnurl.fetchWithdrawRequest
+
+```ts
+async function fetchWithdrawRequest(lnurlOrUrl: string): Promise<LnurlWithdrawResponse>
+```
+
+Fetches a withdraw request from an LNURL or URL.
+
+`LnurlWithdrawResponse = { callback: string, k1: string, minWithdrawable: number, maxWithdrawable: number, defaultDescription: string, tag: 'withdrawRequest' }`
+
+## lnurl.submitWithdrawRequest
+
+```ts
+async function submitWithdrawRequest(opts: { withdrawRequest: LnurlWithdrawResponse, invoice: string }): Promise<{ status: string }>
+```
+
+Submits a withdraw request with a Lightning invoice to receive funds.
+
+## lnurl.parseLnurlMetadata
+
+```ts
+function parseLnurlMetadata(metadata: string): Array<[string, string]>
+```
+
+Parses the JSON-encoded metadata string from a pay request into an array of `[mimeType, content]` tuples.
+
+## lnurl.parseSuccessAction
+
+```ts
+function parseSuccessAction(action: SuccessAction): SuccessAction
+```
+
+Parses and validates a success action response. Success action types: `{ tag: 'message', message: string }`, `{ tag: 'url', description: string, url: string }`, `{ tag: 'aes', description: string, ciphertext: string, iv: string }`.
+
+## lnurl.decryptAesSuccessAction
+
+```ts
+function decryptAesSuccessAction(action: AesSuccessAction, preimage: string): string
+```
+
+Decrypts an AES success action (LUD-10) using the payment preimage as the decryption key. Returns the decrypted plaintext.
+
+## lnurl.verifyPayment
+
+```ts
+function verifyPayment(payResponse: PayResponse): boolean
+```
+
+Verifies a payment response from an LNURL service (LUD-21).
+
+---
+
 # API Reference: NIP-04
 
 AES-256-CBC encryption for Nostr direct messages (legacy).
@@ -2170,6 +3124,102 @@ Unwraps a gift wrap: decrypts wrap, verifies seal signature, decrypts seal, vali
 1. **Rumor** - actual content, unsigned (deniability)
 2. **Seal** (kind 13) - encrypts rumor with NIP-44 (sender + recipient keys), signed by sender, empty tags
 3. **Gift Wrap** (kind 1059) - encrypts seal with NIP-44 (ephemeral + recipient keys), signed by ephemeral key, `p` tag for routing
+
+---
+
+# API Reference: NIP-65
+
+Relay List Metadata - a replaceable event (kind 10002) that advertises a user's preferred relays for reading and writing. Clients use this to discover where to find a user's events and where to send events that mention them.
+
+## Import
+
+```ts
+import { nip65 } from 'nostr-core'
+// or import individual functions
+import { parseRelayList, createRelayListEventTemplate, createRelayListEvent, getReadRelays, getWriteRelays } from 'nostr-core'
+```
+
+## RelayReadWrite Type
+
+```ts
+type RelayReadWrite = {
+  url: string   // Normalized relay WebSocket URL
+  read: boolean // User reads from this relay
+  write: boolean // User writes to this relay
+}
+```
+
+## nip65.parseRelayList
+
+```ts
+function parseRelayList(event: NostrEvent): RelayReadWrite[]
+```
+
+Parses a kind 10002 relay list event into structured relay entries. Throws if event is not kind 10002. Deduplicates and normalizes URLs.
+
+```ts
+const events = await pool.querySync(['wss://purplepag.es'], { kinds: [10002], authors: [userPubkey] })
+if (events.length > 0) {
+  const relays = nip65.parseRelayList(events[0])
+  // [{ url: 'wss://relay.damus.io', read: true, write: true }, ...]
+}
+```
+
+## nip65.createRelayListEventTemplate
+
+```ts
+function createRelayListEventTemplate(relays: RelayReadWrite[]): EventTemplate
+```
+
+Creates an unsigned kind 10002 event template. Use with `finalizeEvent()` or pass to a `Signer`.
+
+```ts
+const template = nip65.createRelayListEventTemplate([
+  { url: 'wss://relay.damus.io', read: true, write: true },
+  { url: 'wss://nos.lol', read: true, write: false },
+])
+const signed = await signer.signEvent(template)
+```
+
+## nip65.createRelayListEvent
+
+```ts
+function createRelayListEvent(relays: RelayReadWrite[], secretKey: Uint8Array): NostrEvent
+```
+
+Creates and signs a kind 10002 relay list event.
+
+```ts
+const event = nip65.createRelayListEvent([
+  { url: 'wss://relay.damus.io', read: true, write: true },
+  { url: 'wss://nos.lol', read: true, write: false },
+  { url: 'wss://relay.nostr.band', read: false, write: true },
+], secretKey)
+await pool.publish(['wss://purplepag.es', 'wss://relay.damus.io'], event)
+```
+
+## nip65.getReadRelays / nip65.getWriteRelays
+
+```ts
+function getReadRelays(relays: RelayReadWrite[]): string[]
+function getWriteRelays(relays: RelayReadWrite[]): string[]
+```
+
+Filter a parsed relay list to only read or write relay URLs.
+
+```ts
+const relays = nip65.parseRelayList(event)
+const readRelays = nip65.getReadRelays(relays)   // where to publish mentions
+const writeRelays = nip65.getWriteRelays(relays) // where to fetch their events
+```
+
+## How It Works
+
+- **Kind 10002** is a replaceable event - only the latest version per pubkey is valid
+- Each `r` tag: `["r", "wss://url"]` (both) or `["r", "wss://url", "read"|"write"]`
+- **Write relays** = where the user publishes events. Query these to fetch their content
+- **Read relays** = where the user reads. Publish mentions/DMs here so they see them
+- Keep lists small (2-4 relays per category). Publish to indexer relays (e.g., `wss://purplepag.es`) for discoverability
 
 ---
 

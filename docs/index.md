@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: nostr-core
-  text: Dead simple NWC client
-  tagline: Vendor-neutral Nostr Wallet Connect for JavaScript and TypeScript
+  text: The complete Nostr toolkit
+  tagline: 37 NIPs, NWC wallet client, and protocol primitives for JavaScript and TypeScript
   image:
     src: /nwc-logo.svg
     alt: nostr-core
@@ -37,15 +37,15 @@ hero:
     color="#F7931A"
   />
   <FeatureCard
-    icon="lucide:shield-check"
-    title="Auto-Encryption"
-    details="Automatically detects NIP-04 vs NIP-44 encryption support. Zero configuration required."
+    icon="lucide:layers"
+    title="37 NIPs Supported"
+    details="Social (reactions, threads, reposts), identity (follows, badges, DNS), privacy (gift wrap, DMs), and much more."
     color="#897FFF"
   />
   <FeatureCard
-    icon="lucide:target"
-    title="Typed Errors"
-    details="Eight specific error classes for precise failure handling - wallet errors, timeouts, relay issues, and more."
+    icon="lucide:shield-check"
+    title="Auto-Encryption"
+    details="Automatically detects NIP-04 vs NIP-44 encryption support. Zero configuration required."
     color="#F7931A"
   />
   <FeatureCard
@@ -59,7 +59,7 @@ hero:
 <div class="stat-banner">
   <StatCard number="4" label="dependencies" description="Audited Noble crypto" />
   <StatCard number="82%" label="fewer packages" description="vs @getalby/sdk" />
-  <StatCard number="10" label="NIP-47 methods" description="Full coverage" />
+  <StatCard number="37" label="NIPs supported" description="Full protocol coverage" />
 </div>
 
 <div class="quick-example">
@@ -84,7 +84,7 @@ nwc.close()
 
 ## How does nostr-core compare?
 
-82% fewer packages, 26% smaller install, zero vendor lock-in.
+37 NIPs, full LNURL protocol, 82% fewer packages, zero vendor lock-in.
 
 [See the full comparison →](/guide/comparison)
 

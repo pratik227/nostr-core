@@ -64,6 +64,7 @@ export class Relay {
   public eoseTimeout = 4400
   public publishTimeout = 4400
   public openSubs = new Map<string, Subscription>()
+  public onauth: ((challenge: string) => void) | undefined
 
   private connectionPromise: Promise<void> | undefined
   private openEventPublishes = new Map<string, {
@@ -159,6 +160,21 @@ export class Relay {
     return sub
   }
 
+  async auth(event: NostrEvent): Promise<string> {
+    const ret = new Promise<string>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        const ep = this.openEventPublishes.get(event.id)
+        if (ep) {
+          ep.reject(new Error('auth timed out'))
+          this.openEventPublishes.delete(event.id)
+        }
+      }, this.publishTimeout)
+      this.openEventPublishes.set(event.id, { resolve, reject, timeout })
+    })
+    this.send('["AUTH",' + JSON.stringify(event) + ']')
+    return ret
+  }
+
   close() {
     this.closeAllSubscriptions('relay connection closed by us')
     this._connected = false
@@ -222,6 +238,11 @@ export class Relay {
         if (!so) return
         so.closed = true
         so.close(data[2] as string)
+        return
+      }
+      case 'AUTH': {
+        const challenge = data[1] as string
+        this.onauth?.(challenge)
         return
       }
       case 'NOTICE': {
